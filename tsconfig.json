@@ -23,6 +23,10 @@
     },
     {
       "path": "./apps/Team2-something-project"
+      "path": "./apps/six7-e2e"
+    },
+    {
+      "path": "./apps/six7"
     }
   ]
 }
