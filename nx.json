@@ -61,6 +61,14 @@
       }
     },
     {
+      "plugin": "@nx/jest/plugin",
+      "options": {
+        "targetName": "test"
+      },
+      "exclude": [
+        "apps/team2-somthing-project-e2e/**/*",
+        "apps/Team2-something-project-e2e/**/*"
+      ]
       "plugin": "@nx/cypress/plugin",
       "options": {
         "targetName": "e2e",
