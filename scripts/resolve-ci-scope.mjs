@@ -3,7 +3,6 @@
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 
 const TEAM_PROJECTS = {
-  six7: ['six7', 'six7-e2e'],
   TOM: ['@org/web', '@org/api', '@org/api-e2e'],
   team2: ['something-project', 'something-project-e2e'],
 };

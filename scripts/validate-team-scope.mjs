@@ -4,9 +4,6 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 const TEAM_RULES = {
-  six7: {
-    allowedPrefixes: ['apps/six7/', 'apps/six7-e2e/'],
-  },
   TOM: {
     allowedPrefixes: ['apps/TOM-web/', 'apps/TOM-api/', 'apps/api-e2e/'],
   },
