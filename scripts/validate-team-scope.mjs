@@ -21,6 +21,7 @@ const TEAM_RULES = {
 const SHARED_PREFIXES = ['.github/', 'scripts/'];
 
 const SHARED_FILES = new Set([
+  '.gitignore',
   'AGENTS.md',
   'README.md',
   'eslint.config.mjs',
