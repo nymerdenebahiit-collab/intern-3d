@@ -1,3 +1,4 @@
+import Header from './_features/header';
 import './global.css';
 
 export const metadata = {
@@ -13,7 +14,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="mn">
-      <body>{children}</body>
+      <Header/>
+      <body className="min-h-screen">{children}</body>
     </html>
   );
 }
