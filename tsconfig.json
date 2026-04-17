@@ -17,6 +17,12 @@
     },
     {
       "path": "./apps/TOM-web"
+    },
+    {
+      "path": "./apps/TimeLine-e2e"
+    },
+    {
+      "path": "./apps/TimeLine"
     }
   ]
 }

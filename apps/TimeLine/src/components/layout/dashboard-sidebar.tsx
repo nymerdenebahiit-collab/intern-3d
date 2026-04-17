@@ -1,0 +1,160 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useRole } from '@/lib/role-context'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
+import { Badge } from '@/components/ui/badge'
+import {
+  Clock,
+  LayoutDashboard,
+  Monitor,
+  CalendarDays,
+  LogOut,
+} from 'lucide-react'
+
+const studentNavItems = [
+  { title: 'Хянах самбар', href: '/dashboard', icon: LayoutDashboard },
+]
+
+const adminNavItems = [
+  { title: 'Хянах самбар', href: '/dashboard', icon: LayoutDashboard },
+  { title: 'Миний хуваарь', href: '/dashboard/my-schedule', icon: CalendarDays },
+]
+
+export function DashboardSidebar() {
+  const pathname = usePathname()
+  const { user, role, logout } = useRole()
+
+  const navItems = role === 'admin' ? adminNavItems : studentNavItems
+
+  return (
+    <Sidebar className="border-r border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border p-4">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+            <Clock className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-sidebar-foreground">
+              Academic TimeLine
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Өрөө удирдлага
+            </span>
+          </div>
+        </Link>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70">
+            Үндсэн
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const isActive = pathname === item.href || 
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="h-10"
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {role === 'admin' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70">
+              Удирдлага
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="rounded-lg border border-blue-200 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-500/5 p-3 mx-2">
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  Өрөөний хуваарь удирдахын тулд өрөөн дээр дарна уу
+                </p>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {role === 'student' && user?.assignedDevice && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70">
+              Таны төхөөрөмж
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5 p-3 mx-2">
+                <div className="flex items-center gap-2">
+                  <Monitor className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    {user.assignedDevice.name}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Анги {user.assignedDevice.roomNumber}
+                </p>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <div className="flex items-center gap-3 rounded-lg p-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+            <span className="text-xs font-medium text-primary">
+              {user?.name?.charAt(0) || 'U'}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="truncate text-sm font-medium text-sidebar-foreground">
+              {user?.name || 'Хэрэглэгч'}
+            </p>
+            <Badge
+              variant="secondary"
+              className={`h-4 text-[10px] ${
+                role === 'admin'
+                  ? 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400'
+                  : 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400'
+              }`}
+            >
+              {role === 'admin' ? 'Админ' : 'Сурагч'}
+            </Badge>
+          </div>
+        </div>
+        <Link
+          href="/"
+          onClick={logout}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Гарах</span>
+        </Link>
+      </SidebarFooter>
+    </Sidebar>
+  )
+}
