@@ -4,6 +4,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 const TEAM_RULES = {
+  timeline: {
+    allowedPrefixes: ['apps/TimeLine/', 'apps/TimeLine-e2e/'],
+  },
   TOM: {
     allowedPrefixes: ['apps/TOM-web/', 'apps/TOM-api/', 'apps/api-e2e/'],
   },
@@ -18,6 +21,7 @@ const TEAM_RULES = {
 const SHARED_PREFIXES = ['.github/', 'scripts/'];
 
 const SHARED_FILES = new Set([
+  '.gitignore',
   'AGENTS.md',
   'README.md',
   'eslint.config.mjs',
@@ -51,7 +55,11 @@ function getTeamLabel(event) {
     .filter((label) => Object.hasOwn(TEAM_RULES, label));
 
   if (labels.length === 0) {
-    return null;
+    fail(
+      `Expected exactly one team label on the pull request. Found: none.\nAdd one of: ${Object.keys(
+        TEAM_RULES
+      ).join(', ')}`
+    );
   }
 
   if (labels.length !== 1) {
@@ -99,11 +107,6 @@ function main() {
   }
 
   const team = getTeamLabel(event);
-
-  if (!team) {
-    console.log('No team label detected; skipping team scope validation.');
-    return;
-  }
 
   const baseSha = event.pull_request.base.sha;
   const headSha = event.pull_request.head.sha;

@@ -51,6 +51,7 @@ Thumbs.db
 out
 
 test-output
+.npm-cache/
 
 # Temporary v0 export dropped inside the six7 app
 apps/six7/v0-employee-paperwork-automation/
