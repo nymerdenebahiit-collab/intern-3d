@@ -1,5 +1,8 @@
+import Link from 'next/link';
+
 const roleCards = [
   {
+    href: '/students',
     label: 'Student space',
     title: 'Student',
     description:
@@ -8,6 +11,7 @@ const roleCards = [
     tone: 'cool',
   },
   {
+    href: '#',
     label: 'Teacher space',
     title: 'Teacher',
     description:
@@ -16,6 +20,7 @@ const roleCards = [
     tone: 'warm',
   },
   {
+    href: '#',
     label: 'Admin space',
     title: 'Admin',
     description:
@@ -80,17 +85,16 @@ export default function Page() {
 
         <section className="role-grid" aria-label="Role cards">
           {roleCards.map((card) => (
-            <article
+            <Link
               key={card.title}
+              href={card.href}
               className={`role-card role-card-${card.tone}`}
             >
               <p className="section-label">{card.label}</p>
               <h3>{card.title}</h3>
               <p className="role-description">{card.description}</p>
-              <button type="button" className="role-button">
-                {card.action}
-              </button>
-            </article>
+              <span className="role-button">{card.action}</span>
+            </Link>
           ))}
         </section>
       </section>
