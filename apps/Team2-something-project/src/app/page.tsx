@@ -11,7 +11,7 @@ const roleCards = [
     tone: 'cool',
   },
   {
-    href: '#',
+    href: '/teacher',
     label: 'Teacher space',
     title: 'Teacher',
     description:
