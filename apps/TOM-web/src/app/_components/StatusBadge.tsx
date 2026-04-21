@@ -1,15 +1,28 @@
-// components/ClubCard.tsx
-export const StatusBadge = ({ type, text }: { type: string, text: string }) => {
-  const styles: any = {
-    open: "bg-green-100 text-green-800",
-    full: "bg-red-100 text-red-800",
-    pending: "bg-yellow-100 text-yellow-700",
-    approved: "bg-green-100 text-green-800",
-  };
+const badgeStyles: Record<string, string> = {
+  open: 'bg-green-100 text-green-800',
+  full: 'bg-red-100 text-red-800',
+  pending: 'bg-yellow-100 text-yellow-700',
+  approved: 'bg-green-100 text-green-800',
+  active: 'bg-emerald-100 text-emerald-800',
+  rejected: 'bg-rose-100 text-rose-800',
+  spam: 'bg-slate-200 text-slate-700',
+  review: 'bg-indigo-100 text-indigo-800',
+};
+
+export const StatusBadge = ({
+  type,
+  text,
+}: {
+  type: string;
+  text: string;
+}) => {
   return (
-    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider ${styles[type] || "bg-slate-100"}`}>
+    <span
+      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${
+        badgeStyles[type] ?? 'bg-slate-100 text-slate-700'
+      }`}
+    >
       {text}
     </span>
   );
 };
-
