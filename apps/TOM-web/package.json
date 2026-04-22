@@ -3,10 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "dev:web": "next dev",
+    "dev:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "build": "next build --webpack",
-    "dev": "next dev",
+    "dev": "npm run dev:web",
     "start": "next start",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "preview": "npm run dev:cf",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --config wrangler.jsonc --env-interface CloudflareEnv cloudflare-env.d.ts"
   },

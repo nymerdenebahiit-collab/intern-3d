@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "nx": "nx"
+    "nx": "nx",
+    "dev:tom-web": "npm exec nx run @org/web:dev",
+    "dev:tom-cloudflare": "npm exec nx run @org/web:d1-migrate-local && npm exec nx run @org/web:preview",
+    "build:tom-web": "npm exec nx run @org/web:build"
   },
   "private": true,
   "devDependencies": {
