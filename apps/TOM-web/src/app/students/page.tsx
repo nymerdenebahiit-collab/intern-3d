@@ -1,148 +1,385 @@
-import { StatusBadge, CapacityBar } from '@/app/_components';
+import {
+  CalendarDays,
+  ChevronRight,
+  Heart,
+  MessageCircle,
+  PlusCircle,
+  Sparkles,
+  Star,
+  Swords,
+  Trophy,
+  Users,
+} from 'lucide-react';
+
+const tabs = ['Browse', 'Feed', 'Events', 'Create'];
+
+const badges = [
+  {
+    name: 'First Club',
+    description: 'Joined your first community',
+    icon: Star,
+    color: 'from-[#8db8ff] to-[#7aa8f4]',
+  },
+  {
+    name: 'Event Hero',
+    description: 'Attended 5 events',
+    icon: CalendarDays,
+    color: 'from-[#6ad0dc] to-[#63bfd8]',
+  },
+  {
+    name: 'Top Voter',
+    description: 'Supported club decisions',
+    icon: Heart,
+    color: 'from-[#7898ef] to-[#6388e7]',
+  },
+  {
+    name: 'Streaker',
+    description: 'Active every week',
+    icon: Sparkles,
+    color: 'from-[#73c7e9] to-[#62afd8]',
+  },
+];
+
+const quickActions = [
+  {
+    title: 'Start a new club',
+    description: 'Send a club proposal with your idea, advisor, and mission.',
+    icon: PlusCircle,
+    accent: 'bg-[#e9f5ff] text-[#3f7ad8]',
+    cta: 'Submit request',
+  },
+  {
+    title: 'Post to your community',
+    description: 'Share updates, comment on plans, and keep your members engaged.',
+    icon: MessageCircle,
+    accent: 'bg-[#ecfbff] text-[#20a1bf]',
+    cta: 'Create post',
+  },
+  {
+    title: 'Jump into events',
+    description: 'RSVP for workshops, game nights, and club meetups this week.',
+    icon: CalendarDays,
+    accent: 'bg-[#eef1ff] text-[#5f79d8]',
+    cta: 'See events',
+  },
+];
+
+const clubs = [
+  {
+    name: 'Robotics Lab',
+    category: 'STEM',
+    members: 42,
+    verified: true,
+    gradient: 'from-[#79b8f4] to-[#b0befc]',
+  },
+  {
+    name: 'Drama Society',
+    category: 'Arts',
+    members: 28,
+    verified: true,
+    gradient: 'from-[#69c8d7] to-[#84c6ef]',
+  },
+  {
+    name: 'Chess Masters',
+    category: 'Strategy',
+    members: 19,
+    verified: false,
+    gradient: 'from-[#658be1] to-[#7882db]',
+  },
+  {
+    name: 'Eco Warriors',
+    category: 'Community',
+    members: 56,
+    verified: true,
+    gradient: 'from-[#71b8f1] to-[#88caef]',
+  },
+];
+
+const activityItems = [
+  {
+    title: 'Club creation request ready',
+    detail: 'Art & Design Circle draft is 80% complete.',
+  },
+  {
+    title: '2 new comments on Robotics Lab',
+    detail: 'Teammates are planning the weekend build challenge.',
+  },
+  {
+    title: 'Friday event reminder',
+    detail: 'Chess Masters rapid tournament starts at 16:30.',
+  },
+];
 
 export default function StudentDashboard() {
+  const xpCurrent = 740;
+  const xpGoal = 1000;
+  const progress = (xpCurrent / xpGoal) * 100;
+
   return (
-    <main className="max-w-6xl mx-auto p-6">
-      <header className="bg-white border border-slate-200 rounded-2xl p-8 mb-6">
-        <span className="inline-flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase mb-4">
-          Student Dashboard
-        </span>
-        <h1 className="text-3xl font-semibold text-slate-900">Browse Clubs</h1>
-        <p className="text-slate-500 mt-2 text-sm">
-          Pick a club that excites you. You can only send one request.
-        </p>
-      </header>
+    <main className="min-h-screen sm:px-6 lg:px-8 pt-10">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <section className="dashboard-entrance overflow-hidden rounded-[34px] border border-[#d8e7fb] bg-white shadow-[0_24px_80px_rgba(33,79,146,0.08)]">
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
-        <div className="space-x-4 grid grid-cols-2">
-          {/* Club Card Example */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-colors h-fit">
-            <div className="flex justify-between items-center mb-4">
-              <StatusBadge type="open" text="Open" />
-              <div>
-                <h3 className="text-xl font-semibold">College Prep Club</h3>
-              </div>
-              <div className="flex gap-1">
-                {' '}
-                Angi: <p className=" font-bold  uppercase">303</p>
-              </div>
+          <div className="relative overflow-hidden bg-[linear-gradient(180deg,#eaf7ff_0%,#eef9ff_30%,#f5fbff_100%)]  ">
+            <div className="floating-orb absolute -left-10 top-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(136,189,255,0.2)_0%,_rgba(136,189,255,0)_70%)]" />
+            <div className="floating-orb absolute right-8 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(109,207,223,0.16)_0%,_rgba(109,207,223,0)_70%)]" />
+
+            <div className="relative grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
+              <section className="dashboard-entrance dashboard-entrance-delay-1 rounded-[30px] bg-gradient-to-r from-[#6fb3f2] via-[#84aef6] to-[#b3aaf6] p-6 text-white shadow-[0_24px_50px_rgba(101,145,233,0.28)] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white/80">
+                      Welcome back, Jordan
+                    </p>
+                    <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-[2rem]">
+                      Level 7 · Club Explorer
+                    </h1>
+                  </div>
+                  <div className="rounded-2xl border border-white/20 bg-white/10 p-3">
+                    <Trophy className="h-8 w-8 text-white/95" />
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <div className="mb-2 flex items-center justify-between text-sm font-medium text-white/85">
+                    <span>{xpCurrent} XP</span>
+                    <span>{xpGoal} XP</span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-white/30">
+                    <div
+                      className="h-full rounded-full bg-white shadow-[0_0_18px_rgba(255,255,255,0.45)]"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-3 text-sm text-white/85">
+                    260 XP to Level 8
+                  </p>
+                </div>
+              </section>
+
+              <aside className="dashboard-entrance dashboard-entrance-delay-2 rounded-[30px] border border-[#dbe7f8] bg-white/95 p-6 shadow-[0_18px_45px_rgba(28,69,130,0.08)] backdrop-blur">
+                <div className="flex items-center gap-2 text-[#1d355b]">
+                  <Trophy className="h-5 w-5 text-[#7f9eea]" />
+                  <h2 className="text-lg font-semibold">Badges</h2>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-2">
+                  {badges.map((badge) => {
+                    const Icon = badge.icon;
+
+                    return (
+                      <article
+                        key={badge.name}
+                        className="flex flex-col items-center rounded-2xl bg-[#fbfdff] px-3 py-2 text-center"
+                      >
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${badge.color} text-white shadow-[0_12px_22px_rgba(111,158,231,0.22)]`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <p className="mt-3 text-sm font-semibold text-[#294262]">
+                          {badge.name}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-[#8398b4]">
+                          {badge.description}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              </aside>
             </div>
 
-            <div className="border-t border-slate-100 py-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Teacher</span>
-                <span className="font-medium">Tugs-Ochir</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Schedule</span>
-                <span className="font-medium">Mon, Wed, Fri · 15:00</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Capacity</span>
-                <CapacityBar current={8} total={25} />
-              </div>
+            <section className="dashboard-entrance dashboard-entrance-delay-3 mt-6 grid gap-4 lg:grid-cols-3">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+
+                return (
+                  <article
+                    key={action.title}
+                    className="rounded-[26px] border border-[#dbe8f9] bg-white/90 p-5 shadow-[0_16px_40px_rgba(30,74,138,0.06)]"
+                  >
+                    <div
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${action.accent}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-[#20395d]">
+                      {action.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-[#6f86a6]">
+                      {action.description}
+                    </p>
+                    <button className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#5e95e5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4b85d8]">
+                      {action.cta}
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </article>
+                );
+              })}
+            </section>
+          </div>
+        </section>
+
+        <section className="dashboard-entrance dashboard-entrance-delay-4 rounded-[34px] border border-[#d8e6f8] bg-white px-5 py-6 shadow-[0_20px_65px_rgba(22,57,111,0.08)] sm:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#7c92b0]">
+                Student Space
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-[#183255] sm:text-3xl">
+                Browse clubs, join communities, and stay active
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7086a5] sm:text-base">
+                Discover clubs, mark the ones you&apos;re interested in, join
+                after approval, and build your reputation through events,
+                posts, comments, XP, and badges.
+              </p>
             </div>
 
-            <div className="flex gap-3 mt-4">
-              <button className="bg-indigo-600 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-indigo-700 transition-opacity">
-                Send request
-              </button>
-              <button className="border border-slate-300 px-5 py-2 rounded-full text-sm font-medium text-slate-600 hover:bg-slate-50">
-                View details
-              </button>
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((tab, index) => (
+                <button
+                  key={tab}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    index === 0
+                      ? 'bg-white text-[#234064] shadow-[0_8px_20px_rgba(44,88,153,0.14)] ring-1 ring-[#d6e3f7]'
+                      : 'text-[#7a90af] hover:bg-[#f3f8ff]'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
           </div>
-           <div className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-colors h-fit">
-            <div className="flex justify-between items-center mb-4">
-              <StatusBadge type="open" text="Open" />
-              <div>
-                <h3 className="text-xl font-semibold">College Prep Club</h3>
-              </div>
-              <div className="flex gap-1">
-                {' '}
-                Angi: <p className=" font-bold  uppercase">303</p>
-              </div>
+
+          <div className="mt-6 grid gap-5 xl:grid-cols-[1.5fr_0.7fr]">
+            <div className="grid gap-5 md:grid-cols-2">
+              {clubs.map((club, index) => (
+                <article
+                  key={club.name}
+                  className={`rounded-[28px] border border-[#dce8f8] bg-white shadow-[0_18px_45px_rgba(29,66,123,0.07)] dashboard-entrance ${
+                    index === 1
+                      ? 'dashboard-entrance-delay-1'
+                      : index === 2
+                      ? 'dashboard-entrance-delay-2'
+                      : index === 3
+                      ? 'dashboard-entrance-delay-3'
+                      : ''
+                  }`}
+                >
+                  <div
+                    className={`rounded-t-[28px] bg-gradient-to-r ${club.gradient} px-5 py-4 text-white`}
+                  >
+                    <div className="flex justify-end">
+                      {club.verified ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#5c8bd9]">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white/90">
+                          New club
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-10 h-10" />
+                  </div>
+
+                  <div className="px-5 py-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-2xl font-semibold text-[#1d355b]">
+                          {club.name}
+                        </h3>
+                        <div className="mt-2 flex items-center gap-2 text-sm text-[#7f94b0]">
+                          <Users className="h-4 w-4" />
+                          <span>{club.members} members</span>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#5c7ea5]">
+                        {club.category}
+                      </span>
+                    </div>
+
+                    <div className="mt-6 flex gap-3">
+                      <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-[#d6e1f2] px-4 py-2.5 text-sm font-semibold text-[#4f6587] transition hover:bg-[#f6f9ff]">
+                        <Heart className="h-4 w-4" />
+                        Interested
+                      </button>
+                      <button className="inline-flex flex-1 items-center justify-center rounded-full bg-[#67a2ea] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#568fd8]">
+                        Join
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
 
-            <div className="border-t border-slate-100 py-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Teacher</span>
-                <span className="font-medium">Tugs-Ochir</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Schedule</span>
-                <span className="font-medium">Mon, Wed, Fri · 15:00</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Capacity</span>
-                <CapacityBar current={8} total={25} />
-              </div>
-            </div>
+            <aside className="space-y-5">
+              <section className="rounded-[28px] border border-[#dce7f8] bg-[linear-gradient(180deg,#f6fbff_0%,#ffffff_100%)] p-5 shadow-[0_18px_48px_rgba(31,73,132,0.06)]">
+                <div className="flex items-center gap-2">
+                  <Swords className="h-5 w-5 text-[#6f8fe3]" />
+                  <h3 className="text-lg font-semibold text-[#223b5f]">
+                    Activity Quest
+                  </h3>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#7086a5]">
+                  Complete student tasks to keep leveling up across your club
+                  journey.
+                </p>
 
-            <div className="flex gap-3 mt-4">
-              <button className="bg-indigo-600 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-indigo-700 transition-opacity">
-                Send request
-              </button>
-              <button className="border border-slate-300 px-5 py-2 rounded-full text-sm font-medium text-slate-600 hover:bg-slate-50">
-                View details
-              </button>
-            </div>
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-2xl bg-[#eef6ff] p-4">
+                    <p className="text-sm font-semibold text-[#224064]">
+                      Submit a club idea
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-[#7086a6]">
+                      Launch a new club request and earn a creativity bonus.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-[#eefcfb] p-4">
+                    <p className="text-sm font-semibold text-[#224064]">
+                      Comment on a post
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-[#7086a6]">
+                      Keep the community active and unlock social XP.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-[#f2f1ff] p-4">
+                    <p className="text-sm font-semibold text-[#224064]">
+                      Attend this week&apos;s event
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-[#7086a6]">
+                      Show up, participate, and stack event badges.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[28px] border border-[#dce7f8] bg-white p-5 shadow-[0_16px_44px_rgba(31,73,132,0.06)]">
+                <h3 className="text-lg font-semibold text-[#223b5f]">
+                  Live activity
+                </h3>
+                <div className="mt-4 space-y-3">
+                  {activityItems.map((item) => (
+                    <article
+                      key={item.title}
+                      className="rounded-2xl border border-[#e7eef8] bg-[#fbfdff] p-4"
+                    >
+                      <p className="text-sm font-semibold text-[#243f63]">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-[#7c91ad]">
+                        {item.detail}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </aside>
           </div>
-          
-        </div>
-
-        <aside className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
-            <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">
-              Your Status
-            </p>
-            <h2 className="text-lg font-semibold">No request yet</h2>
-            <p className="text-[13px] text-gray-500">
-              Once you send a request, you'll wait here for the teacher to
-              approve or reject it.
-            </p>
-            <div className="mt-4 space-y-2 text-sm text-slate-600">
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg">
-                <span className="bg-indigo-600 text-white w-5 h-5 flex items-center justify-center rounded-full text-[15px]">
-                  1
-                </span>{' '}
-                Browse clubs
-              </div>
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg">
-                <span className="bg-indigo-600 text-white w-5 h-5 flex items-center justify-center rounded-full text-[15px]">
-                  2
-                </span>{' '}
-                Send request
-              </div>
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg">
-                <span className="bg-indigo-600 text-white w-5 h-5 flex items-center justify-center rounded-full text-[15px]">
-                  3
-                </span>{' '}
-                Wait for approval
-              </div>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
-            <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">
-              Rules
-            </p>
-            <h2 className="text-lg font-semibold">How it works</h2>
-
-            <div className="mt-4 space-y-2 text-sm text-slate-600">
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border-l-4 border-indigo-600">
-                {' '}
-                You can only join one club
-              </div>
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border-l-4 border-indigo-600">
-                {' '}
-                Full clubs can't be requested
-              </div>
-              <div className="flex gap-3 bg-slate-50 p-3 rounded-lg border-l-4 border-indigo-600">
-                After requesting, status is pending
-              </div>
-            </div>
-          </div>
-        </aside>
+        </section>
       </div>
     </main>
   );
