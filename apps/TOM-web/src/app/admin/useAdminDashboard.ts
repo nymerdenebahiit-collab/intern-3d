@@ -1,35 +1,155 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import type {
+  Club as ApiClub,
+  ClubRequest as ApiClubRequest,
+  ManagedUser as ApiManagedUser,
+} from '@/lib/tom-types';
 
 import {
-  createManagedUser,
-  createPendingRequest,
   formatThresholdLabel,
-  initialActiveClubs,
   initialForm,
-  initialManagedUsers,
-  initialRequests,
-  initialSpamQueue,
   initialUserForm,
-  requestToActiveClub,
+  thresholdGoal,
+  type ActiveClub,
   type ClubForm,
   type ClubRequest,
   type ManagedUser,
   type UserForm,
-  thresholdGoal,
 } from './admin-data';
+
+type DashboardSummary = {
+  totalUsers: number;
+  activeClubs: number;
+  pendingRequests: number;
+  spamRequests: number;
+  thresholdReachedRequests: number;
+};
+
+type DashboardSnapshot = {
+  summary: DashboardSummary;
+  requests: ClubRequest[];
+  clubs: ActiveClub[];
+  users: ManagedUser[];
+};
+
+const defaultBanner =
+  'Cloudflare D1 дээрх бодит өгөгдлийг уншаад admin dashboard-ийг синк хийлээ.';
+
+const emptySummary: DashboardSummary = {
+  totalUsers: 0,
+  activeClubs: 0,
+  pendingRequests: 0,
+  spamRequests: 0,
+  thresholdReachedRequests: 0,
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+async function readJson<T>(response: Response) {
+  const data = (await response.json().catch(() => null)) as
+    | ({ error?: string; details?: unknown } & T)
+    | null;
+
+  if (!response.ok) {
+    throw new Error(data?.error || `Request failed with status ${response.status}.`);
+  }
+
+  return data as T;
+}
+
+async function apiRequest<T>(input: string, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+
+  if (init?.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+
+  const response = await fetch(input, {
+    ...init,
+    headers,
+  });
+
+  return readJson<T>(response);
+}
+
+function mapRequest(request: ApiClubRequest): ClubRequest {
+  return {
+    id: request.id,
+    clubName: request.clubName,
+    teacher: request.teacherName || 'Тодорхойгүй багш',
+    createdBy: request.createdBy,
+    interestCount: request.interestCount,
+    studentLimit: request.studentLimit,
+    gradeRange: request.gradeRange,
+    allowedDays: request.allowedDays,
+    startDate: request.startDate,
+    endDate: request.endDate,
+    note: request.note,
+    requestStatus: request.requestStatus,
+    clubStatus:
+      request.clubStatus === 'spam'
+        ? 'spam'
+        : request.clubStatus === 'active'
+        ? 'active'
+        : request.clubStatus === 'paused'
+        ? 'paused'
+        : 'pending',
+    flaggedReason: request.flaggedReason ?? undefined,
+  };
+}
+
+function mapClub(club: ApiClub): ActiveClub {
+  return {
+    id: club.id,
+    clubName: club.name,
+    teacher: club.teacherName || 'Тодорхойгүй багш',
+    createdBy: club.createdBy,
+    interestCount: club.interestCount,
+    studentLimit: club.studentLimit,
+    gradeRange: club.gradeRange,
+    allowedDays: club.allowedDays,
+    startDate: club.startDate,
+    endDate: club.endDate,
+    note: club.note || club.description,
+    requestStatus: 'approved',
+    clubStatus: club.status === 'active' ? 'active' : 'paused',
+  };
+}
+
+function mapUser(user: ApiManagedUser): ManagedUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role === 'teacher' ? 'teacher' : 'student',
+    accountStatus: user.accountStatus,
+    reason: user.reason,
+    lastActive: user.lastActive,
+    clubCount: user.clubCount,
+    notes: user.notes,
+  };
+}
 
 export function useAdminDashboard() {
   const [form, setForm] = useState(initialForm);
   const [userForm, setUserForm] = useState(initialUserForm);
-  const [requests, setRequests] = useState(initialRequests);
-  const [activeClubs, setActiveClubs] = useState(initialActiveClubs);
-  const [spamQueue, setSpamQueue] = useState(initialSpamQueue);
-  const [users, setUsers] = useState(initialManagedUsers);
-  const [banner, setBanner] = useState(
-    'Шинэ клубийн хүсэлтүүдийг шалгаж, боломжтойг нь идэвхжүүлж, spam-ийг хурдан цэвэрлэ.'
-  );
+  const [requests, setRequests] = useState<ClubRequest[]>([]);
+  const [activeClubs, setActiveClubs] = useState<ActiveClub[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary>(emptySummary);
+  const [banner, setBanner] = useState(defaultBanner);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const updateField = (field: keyof ClubForm, value: string) => {
     setForm((current) => ({
@@ -53,174 +173,302 @@ export function useAdminDashboard() {
     setUserForm(initialUserForm);
   };
 
-  const handleCreate = () => {
-    const newRequest: ClubRequest = createPendingRequest(form);
+  const loadDashboardSnapshot = async (): Promise<DashboardSnapshot> => {
+    const [summaryData, requestData, clubData, userData] = await Promise.all([
+      apiRequest<{ summary: DashboardSummary }>('/api/dashboard/summary'),
+      apiRequest<{ requests: ApiClubRequest[] }>('/api/club-requests'),
+      apiRequest<{ clubs: ApiClub[] }>('/api/clubs'),
+      apiRequest<{ users: ApiManagedUser[] }>('/api/users'),
+    ]);
 
-    setRequests((current) => [newRequest, ...current]);
-    setBanner(`${newRequest.clubName} шалгах дараалалд нэмэгдлээ.`);
-    setForm(initialForm);
+    return {
+      summary: summaryData.summary,
+      requests: requestData.requests.map(mapRequest),
+      clubs: clubData.clubs.map(mapClub),
+      users: userData.users.map(mapUser),
+    };
   };
 
-  const handleCreateUser = () => {
-    const newUser: ManagedUser = createManagedUser(userForm);
-
-    setUsers((current) => [newUser, ...current]);
-    setBanner(`${newUser.name} хэрэглэгчийн бүртгэл нэмэгдлээ.`);
-    setUserForm(initialUserForm);
+  const applySnapshot = (snapshot: DashboardSnapshot, nextBanner?: string) => {
+    setSummary(snapshot.summary);
+    setRequests(snapshot.requests);
+    setActiveClubs(snapshot.clubs);
+    setUsers(snapshot.users);
+    setBanner(nextBanner ?? defaultBanner);
   };
 
-  const approveRequest = (requestId: string) => {
+  const refreshDashboard = async (successMessage?: string) => {
+    const snapshot = await loadDashboardSnapshot();
+    applySnapshot(snapshot, successMessage);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        const snapshot = await loadDashboardSnapshot();
+
+        if (!cancelled) {
+          applySnapshot(snapshot);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(
+            getErrorMessage(error, 'Admin dashboard data-г ачаалж чадсангүй.')
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const runMutation = async (
+    action: () => Promise<void>,
+    fallbackError: string
+  ) => {
+    setIsSaving(true);
+    setErrorMessage('');
+
+    try {
+      await action();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, fallbackError));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    const clubName = form.clubName.trim() || 'Нэргүй клуб';
+
+    await runMutation(async () => {
+      await apiRequest<{ request: ApiClubRequest }>('/api/club-requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          clubName,
+          teacher: form.teacher,
+          createdBy: 'Админ самбар',
+          startDate: form.startDate,
+          endDate: form.endDate,
+          allowedDays: form.allowedDays,
+          gradeRange: form.gradeRange,
+          studentLimit: Number(form.studentLimit) || 12,
+          interestCount: Number(form.interestCount) || 0,
+          note: form.note || 'Админ самбараас шинээр үүсгэсэн клубийн хүсэлт.',
+          requestStatus: 'pending',
+          clubStatus: 'pending',
+        }),
+      });
+
+      setForm(initialForm);
+      await refreshDashboard(`${clubName} шалгах дараалалд нэмэгдлээ.`);
+    }, 'Шинэ клубийн хүсэлт үүсгэж чадсангүй.');
+  };
+
+  const handleCreateUser = async () => {
+    const userName = userForm.name.trim() || 'Нэргүй хэрэглэгч';
+
+    await runMutation(async () => {
+      await apiRequest<{ user: ApiManagedUser }>('/api/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: userName,
+          email: userForm.email,
+          role: userForm.role,
+          accountStatus: 'active',
+          reason:
+            userForm.reason || 'Админ самбараас шинээр бүртгэгдсэн хэрэглэгч.',
+          lastActive: new Date().toISOString().slice(0, 10),
+          clubCount: 0,
+          notes: 'Шинэ бүртгэл.',
+        }),
+      });
+
+      setUserForm(initialUserForm);
+      await refreshDashboard(`${userName} хэрэглэгчийн бүртгэл нэмэгдлээ.`);
+    }, 'Хэрэглэгч нэмж чадсангүй.');
+  };
+
+  const approveRequest = async (requestId: string) => {
     const request = requests.find((item) => item.id === requestId);
-
     if (!request) return;
 
-    setRequests((current) =>
-      current.map((item) =>
-        item.id === requestId
-          ? { ...item, requestStatus: 'approved', clubStatus: 'active' }
-          : item
-      )
-    );
-
-    setActiveClubs((current) => {
-      const nextClub = requestToActiveClub(request);
-      return [nextClub, ...current.filter((item) => item.id !== requestId)];
-    });
-    setBanner(`${request.clubName} батлагдаж active төлөвт шилжлээ.`);
+    await runMutation(async () => {
+      await apiRequest<{ request: ApiClubRequest; club: ApiClub }>(
+        `/api/club-requests/${requestId}/approve`,
+        { method: 'POST' }
+      );
+      await refreshDashboard(`${request.clubName} батлагдаж active төлөвт шилжлээ.`);
+    }, 'Клубийн хүсэлтийг баталж чадсангүй.');
   };
 
-  const rejectRequest = (requestId: string) => {
+  const rejectRequest = async (requestId: string) => {
     const request = requests.find((item) => item.id === requestId);
-
     if (!request) return;
 
-    setRequests((current) =>
-      current.map((item) =>
-        item.id === requestId
-          ? { ...item, requestStatus: 'rejected', clubStatus: 'paused' }
-          : item
-      )
-    );
-    setActiveClubs((current) =>
-      current.filter((item) => item.id !== requestId)
-    );
-    setBanner(`${request.clubName} татгалзагдлаа.`);
+    await runMutation(async () => {
+      await apiRequest<{ request: ApiClubRequest }>(
+        `/api/club-requests/${requestId}/reject`,
+        { method: 'POST' }
+      );
+      await refreshDashboard(`${request.clubName} татгалзагдлаа.`);
+    }, 'Клубийн хүсэлтийг татгалзаж чадсангүй.');
   };
 
-  const toggleClubStatus = (clubId: string) => {
-    setActiveClubs((current) =>
-      current.map((club) => {
-        if (club.id !== clubId) {
-          return club;
-        }
+  const toggleClubStatus = async (clubId: string) => {
+    const club = activeClubs.find((item) => item.id === clubId);
+    if (!club) return;
 
-        const nextStatus = club.clubStatus === 'active' ? 'paused' : 'active';
-        return {
-          ...club,
-          clubStatus: nextStatus,
-          requestStatus: nextStatus === 'active' ? 'approved' : club.requestStatus,
-        };
-      })
-    );
-    setBanner('Клубийн төлөв шинэчлэгдлээ.');
+    const nextStatus = club.clubStatus === 'active' ? 'paused' : 'active';
+
+    await runMutation(async () => {
+      await apiRequest<{ club: ApiClub }>(`/api/clubs/${clubId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: club.clubName,
+          teacherName: club.teacher,
+          createdBy: club.createdBy,
+          interestCount: club.interestCount,
+          studentLimit: club.studentLimit,
+          memberCount: 0,
+          gradeRange: club.gradeRange,
+          allowedDays: club.allowedDays,
+          startDate: club.startDate,
+          endDate: club.endDate,
+          note: club.note,
+          description: club.note,
+          status: nextStatus,
+          category: 'general',
+          verified: false,
+        }),
+      });
+
+      await refreshDashboard(
+        nextStatus === 'active'
+          ? `${club.clubName} дахин идэвхжлээ.`
+          : `${club.clubName} түр pause төлөвт орлоо.`
+      );
+    }, 'Клубийн төлөв шинэчилж чадсангүй.');
   };
 
-  const updateUserRole = (userId: string, role: ManagedUser['role']) => {
-    setUsers((current) =>
-      current.map((user) => {
-        if (user.id !== userId) {
-          return user;
-        }
+  const updateUserRole = async (userId: string, role: ManagedUser['role']) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user) return;
 
-        return {
-          ...user,
+    await runMutation(async () => {
+      await apiRequest<{ user: ApiManagedUser }>(`/api/users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
           role,
           notes: `${role === 'teacher' ? 'Багшийн' : 'Сурагчийн'} эрхээр шинэчиллээ.`,
-        };
-      })
-    );
-    setBanner('Хэрэглэгчийн эрх шинэчлэгдлээ.');
+        }),
+      });
+
+      await refreshDashboard('Хэрэглэгчийн эрх шинэчлэгдлээ.');
+    }, 'Хэрэглэгчийн эрх шинэчилж чадсангүй.');
   };
 
-  const toggleUserRestriction = (userId: string) => {
-    setUsers((current) =>
-      current.map((user) => {
-        if (user.id !== userId) {
-          return user;
-        }
+  const toggleUserRestriction = async (userId: string) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user) return;
 
-        const nextStatus =
-          user.accountStatus === 'restricted' ? 'active' : 'restricted';
+    const nextStatus =
+      user.accountStatus === 'restricted' ? 'active' : 'restricted';
+    const nextReason =
+      nextStatus === 'active'
+        ? 'Хязгаарлалт цуцлагдсан.'
+        : 'Дүрмийн зөрчил шалгагдаж байна.';
 
-        return {
-          ...user,
+    await runMutation(async () => {
+      await apiRequest<{ user: ApiManagedUser }>(`/api/users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
           accountStatus: nextStatus,
-          reason:
-            nextStatus === 'active'
-              ? 'Хязгаарлалт цуцлагдсан.'
-              : 'Дүрмийн зөрчил шалгагдаж байна.',
-        };
-      })
-    );
-    setBanner('Хэрэглэгчийн хязгаарлалт шинэчлэгдлээ.');
+          reason: nextReason,
+        }),
+      });
+
+      await refreshDashboard('Хэрэглэгчийн хязгаарлалт шинэчлэгдлээ.');
+    }, 'Хэрэглэгчийн хязгаарлалт шинэчилж чадсангүй.');
   };
 
-  const toggleUserBan = (userId: string) => {
-    setUsers((current) =>
-      current.map((user) => {
-        if (user.id !== userId) {
-          return user;
-        }
+  const toggleUserBan = async (userId: string) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user) return;
 
-        const nextStatus = user.accountStatus === 'banned' ? 'active' : 'banned';
+    const nextStatus = user.accountStatus === 'banned' ? 'active' : 'banned';
+    const nextReason =
+      nextStatus === 'active'
+        ? 'Блок тайлагдлаа.'
+        : 'Админы шийдвэрээр түдгэлзүүллээ.';
 
-        return {
-          ...user,
+    await runMutation(async () => {
+      await apiRequest<{ user: ApiManagedUser }>(`/api/users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
           accountStatus: nextStatus,
-          reason:
-            nextStatus === 'active'
-              ? 'Блок тайлагдлаа.'
-              : 'Админы шийдвэрээр түдгэлзүүллээ.',
-        };
-      })
-    );
-    setBanner('Хэрэглэгчийн түдгэлзүүлэлт шинэчлэгдлээ.');
+          reason: nextReason,
+        }),
+      });
+
+      await refreshDashboard('Хэрэглэгчийн түдгэлзүүлэлт шинэчлэгдлээ.');
+    }, 'Хэрэглэгчийн түдгэлзүүлэлтийг шинэчилж чадсангүй.');
   };
 
-  const removeSpamClub = (clubId: string) => {
-    const spamClub = spamQueue.find((item) => item.id === clubId);
-
+  const removeSpamClub = async (clubId: string) => {
+    const spamClub = requests.find(
+      (item) => item.id === clubId && item.clubStatus === 'spam'
+    );
     if (!spamClub) return;
 
-    setSpamQueue((current) => current.filter((item) => item.id !== clubId));
-    setBanner(`${spamClub.clubName} spam гэж устгагдлаа.`);
+    await runMutation(async () => {
+      await apiRequest<{ ok: boolean }>(`/api/club-requests/${clubId}`, {
+        method: 'DELETE',
+      });
+
+      await refreshDashboard(`${spamClub.clubName} spam гэж устгагдлаа.`);
+    }, 'Spam хүсэлтийг устгаж чадсангүй.');
   };
 
-  const pendingRequests = requests.filter(
+  const spamQueue = requests.filter((request) => request.clubStatus === 'spam');
+  const reviewRequests = requests.filter((request) => request.clubStatus !== 'spam');
+  const pendingRequests = reviewRequests.filter(
     (request) => request.requestStatus === 'pending'
   );
-  const activeCount = activeClubs.filter((club) => club.clubStatus === 'active')
-    .length;
-  const thresholdReachedCount = new Set(
-    [...requests, ...activeClubs]
-      .filter((club) => club.interestCount >= thresholdGoal)
-      .map((club) => club.id)
-  ).size;
+  const activeCount = summary.activeClubs;
+  const thresholdReachedCount = summary.thresholdReachedRequests;
 
   return {
     activeClubs,
     activeCount,
     approveRequest,
     banner,
+    errorMessage,
     form,
     handleCreate,
     handleCreateUser,
+    isLoading,
+    isSaving,
     pendingRequests,
     rejectRequest,
     removeSpamClub,
-    requests,
-    spamQueue,
+    requests: reviewRequests,
     resetUserForm,
+    summary,
+    spamQueue,
     thresholdReachedCount,
     thresholdGoal,
     resetForm,

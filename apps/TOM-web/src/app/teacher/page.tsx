@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -11,44 +14,38 @@ import {
   XCircle,
 } from 'lucide-react';
 
-const requests = [
-  { name: 'Astronomy Society', by: 'Sara M.', date: 'Apr 18', interest: 12 },
-  { name: 'Debate Club', by: 'Omar T.', date: 'Apr 17', interest: 9 },
-  { name: 'Photography Hub', by: 'Eli W.', date: 'Apr 15', interest: 6 },
-];
+import type { Club, ClubRequest } from '@/lib/tom-types';
 
-const myClubs = [
-  { name: 'Robotics Lab', status: 'Active', verified: true, members: 42 },
-  { name: 'Chess Masters', status: 'Active', verified: false, members: 19 },
-  { name: 'Math Olympiad', status: 'Inactive', verified: true, members: 4 },
-];
+type Summary = {
+  totalUsers: number;
+  activeClubs: number;
+  pendingRequests: number;
+  spamRequests: number;
+  thresholdReachedRequests: number;
+};
 
-const stats = [
-  {
-    label: 'Pending requests',
-    value: 8,
-    icon: ClipboardList,
-    accent: 'bg-gradient-teacher',
-  },
-  {
-    label: 'My clubs',
-    value: 5,
-    icon: ShieldCheck,
-    accent: 'bg-gradient-primary',
-  },
-  {
-    label: 'Inactive clubs',
-    value: 2,
-    icon: AlertCircle,
-    accent: 'bg-gradient-admin',
-  },
-  {
-    label: 'Upcoming events',
-    value: 3,
-    icon: Calendar,
-    accent: 'bg-gradient-student',
-  },
-];
+async function readJson<T>(response: Response) {
+  const data = (await response.json().catch(() => null)) as
+    | ({ error?: string } & T)
+    | null;
+
+  if (!response.ok) {
+    throw new Error(data?.error || `Request failed with status ${response.status}.`);
+  }
+
+  return data as T;
+}
+
+async function apiRequest<T>(input: string, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+
+  if (init?.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+
+  const response = await fetch(input, { ...init, headers });
+  return readJson<T>(response);
+}
 
 function PanelHeader() {
   return (
@@ -92,11 +89,205 @@ function PanelHeader() {
 }
 
 export default function TeacherDashboard() {
+  const [requests, setRequests] = useState<ClubRequest[]>([]);
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [summary, setSummary] = useState<Summary>({
+    totalUsers: 0,
+    activeClubs: 0,
+    pendingRequests: 0,
+    spamRequests: 0,
+    thresholdReachedRequests: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('Teacher dashboard live data руу холбогдсон.');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const loadData = async (nextMessage?: string) => {
+    const [summaryData, requestData, clubData] = await Promise.all([
+      apiRequest<{ summary: Summary }>('/api/dashboard/summary'),
+      apiRequest<{ requests: ClubRequest[] }>(
+        '/api/club-requests?requestStatus=pending'
+      ),
+      apiRequest<{ clubs: Club[] }>('/api/clubs'),
+    ]);
+
+    setSummary(summaryData.summary);
+    setRequests(requestData.requests);
+    setClubs(clubData.clubs);
+    setMessage(nextMessage || 'Teacher dashboard live data руу холбогдсон.');
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        await loadData();
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'Teacher panel data ачаалж чадсангүй.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const runAction = async (action: () => Promise<void>, fallback: string) => {
+    setIsSaving(true);
+    setErrorMessage('');
+
+    try {
+      await action();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : fallback);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const approveRequest = async (requestId: string, name: string) => {
+    await runAction(async () => {
+      await apiRequest<{ request: ClubRequest; club: Club }>(
+        `/api/club-requests/${requestId}/approve`,
+        { method: 'POST' }
+      );
+      await loadData(`${name} хүсэлт батлагдаж клуб болсон.`);
+    }, 'Хүсэлтийг баталж чадсангүй.');
+  };
+
+  const rejectRequest = async (requestId: string, name: string) => {
+    await runAction(async () => {
+      await apiRequest<{ request: ClubRequest }>(
+        `/api/club-requests/${requestId}/reject`,
+        { method: 'POST' }
+      );
+      await loadData(`${name} хүсэлт татгалзагдлаа.`);
+    }, 'Хүсэлтийг татгалзаж чадсангүй.');
+  };
+
+  const toggleClubStatus = async (club: Club) => {
+    const nextStatus = club.status === 'active' ? 'paused' : 'active';
+
+    await runAction(async () => {
+      await apiRequest<{ club: Club }>(`/api/clubs/${club.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: club.name,
+          description: club.description,
+          teacherName: club.teacherName,
+          createdBy: club.createdBy,
+          interestCount: club.interestCount,
+          studentLimit: club.studentLimit,
+          memberCount: club.memberCount,
+          gradeRange: club.gradeRange,
+          allowedDays: club.allowedDays,
+          startDate: club.startDate,
+          endDate: club.endDate,
+          note: club.note,
+          status: nextStatus,
+          category: club.category,
+          verified: club.verified,
+        }),
+      });
+      await loadData(
+        nextStatus === 'active'
+          ? `${club.name} дахин идэвхжлээ.`
+          : `${club.name} түр pause төлөвт орлоо.`
+      );
+    }, 'Клубийн төлөв шинэчилж чадсангүй.');
+  };
+
+  const inactiveCount = clubs.filter((club) => club.status !== 'active').length;
+
+  const stats = useMemo(
+    () => [
+      {
+        label: 'Pending requests',
+        value: summary.pendingRequests,
+        icon: ClipboardList,
+        accent: 'bg-gradient-teacher',
+      },
+      {
+        label: 'My clubs',
+        value: clubs.length,
+        icon: ShieldCheck,
+        accent: 'bg-gradient-primary',
+      },
+      {
+        label: 'Inactive clubs',
+        value: inactiveCount,
+        icon: AlertCircle,
+        accent: 'bg-gradient-admin',
+      },
+      {
+        label: 'Threshold ready',
+        value: summary.thresholdReachedRequests,
+        icon: Calendar,
+        accent: 'bg-gradient-student',
+      },
+    ],
+    [clubs.length, inactiveCount, summary.pendingRequests, summary.thresholdReachedRequests]
+  );
+
   return (
     <div className="min-h-screen bg-gradient-hero font-sans text-[color:var(--foreground)]">
       <PanelHeader />
 
       <main className="container mx-auto space-y-8 px-6 py-8">
+        <section
+          className={`shadow-soft rounded-3xl border px-5 py-4 ${
+            errorMessage
+              ? 'border-[#ffd2d5] bg-[#fff7f8] text-[#b23a49]'
+              : 'border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--muted-foreground)]'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                {errorMessage
+                  ? 'Sync error'
+                  : isLoading
+                  ? 'Loading live data'
+                  : isSaving
+                  ? 'Saving changes'
+                  : 'Connected'}
+              </p>
+              <p className="mt-1 text-sm">
+                {errorMessage ||
+                  (isLoading
+                    ? 'Cloudflare D1 дээрх хүсэлт, клуб, статистик өгөгдлийг ачаалж байна.'
+                    : isSaving
+                    ? 'Сүүлд хийсэн teacher action-ийг хадгалж байна.'
+                    : message)}
+              </p>
+            </div>
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-medium text-[color:var(--primary-foreground)] shadow transition-colors hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Open admin tools
+            </Link>
+          </div>
+        </section>
+
         <section className="grid gap-4 md:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
@@ -137,26 +328,39 @@ export default function TeacherDashboard() {
             <div className="space-y-3 p-6 pt-0">
               {requests.map((request) => (
                 <div
-                  key={request.name}
+                  key={request.id}
                   className="flex items-center justify-between rounded-2xl border border-[color:var(--border)] p-4 transition-colors hover:bg-[color:var(--muted)]/50"
                 >
                   <div>
-                    <p className="font-medium">{request.name}</p>
+                    <p className="font-medium">{request.clubName}</p>
                     <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                      by {request.by} · {request.date} · {request.interest}{' '}
-                      interested
+                      by {request.createdBy} · {request.startDate || 'No date'} ·{' '}
+                      {request.interestCount} interested
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-3 text-xs font-medium shadow-sm transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)]">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => void rejectRequest(request.id, request.clubName)}
+                      className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-3 text-xs font-medium shadow-sm transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                       <XCircle className="h-3.5 w-3.5" /> Reject
                     </button>
-                    <button className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[color:var(--primary)] px-3 text-xs font-medium text-[color:var(--primary-foreground)] shadow transition-colors hover:opacity-90">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => void approveRequest(request.id, request.clubName)}
+                      className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[color:var(--primary)] px-3 text-xs font-medium text-[color:var(--primary-foreground)] shadow transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Approve
                     </button>
                   </div>
                 </div>
               ))}
+              {requests.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-5 text-sm text-[color:var(--muted-foreground)]">
+                  Одоогоор pending хүсэлт алга байна.
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -167,13 +371,22 @@ export default function TeacherDashboard() {
               </div>
             </div>
             <div className="space-y-3 p-6 pt-0">
-              <button className="inline-flex w-full items-center justify-start gap-2 rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-medium text-[color:var(--primary-foreground)] shadow transition-colors hover:opacity-90">
+              <Link
+                href="/admin"
+                className="inline-flex w-full items-center justify-start gap-2 rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-medium text-[color:var(--primary-foreground)] shadow transition-colors hover:opacity-90"
+              >
                 <Plus className="h-4 w-4" /> Create new club
-              </button>
-              <button className="inline-flex w-full items-center justify-start gap-2 rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)]">
+              </Link>
+              <button
+                disabled
+                className="inline-flex w-full items-center justify-start gap-2 rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-4 py-2 text-sm font-medium shadow-sm opacity-60"
+              >
                 <Calendar className="h-4 w-4" /> Post an event
               </button>
-              <button className="inline-flex w-full items-center justify-start gap-2 rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)]">
+              <button
+                disabled
+                className="inline-flex w-full items-center justify-start gap-2 rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-4 py-2 text-sm font-medium shadow-sm opacity-60"
+              >
                 <ShieldCheck className="h-4 w-4" /> Verify a club
               </button>
             </div>
@@ -209,24 +422,22 @@ export default function TeacherDashboard() {
                   </tr>
                 </thead>
                 <tbody className="[&_tr:last-child]:border-0">
-                  {myClubs.map((club) => (
+                  {clubs.map((club) => (
                     <tr
-                      key={club.name}
+                      key={club.id}
                       className="border-b transition-colors hover:bg-[color:var(--muted)]/50"
                     >
-                      <td className="p-2 align-middle font-medium">
-                        {club.name}
-                      </td>
-                      <td className="p-2 align-middle">{club.members}</td>
+                      <td className="p-2 align-middle font-medium">{club.name}</td>
+                      <td className="p-2 align-middle">{club.memberCount}</td>
                       <td className="p-2 align-middle">
                         <div
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            club.status === 'Active'
+                            club.status === 'active'
                               ? 'bg-[color:var(--success)]/15 text-[color:var(--success)]'
                               : 'bg-[color:var(--warning)]/20 text-[color:var(--warning-foreground)]'
                           }`}
                         >
-                          {club.status}
+                          {club.status === 'active' ? 'Active' : 'Paused'}
                         </div>
                       </td>
                       <td className="p-2 align-middle">
@@ -241,8 +452,12 @@ export default function TeacherDashboard() {
                         )}
                       </td>
                       <td className="p-2 text-right align-middle">
-                        <button className="inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)]">
-                          Manage
+                        <button
+                          disabled={isSaving}
+                          onClick={() => void toggleClubStatus(club)}
+                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {club.status === 'active' ? 'Pause' : 'Activate'}
                         </button>
                       </td>
                     </tr>

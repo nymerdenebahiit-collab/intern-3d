@@ -57,9 +57,13 @@ export default function AdminDashboard() {
     activeClubs,
     activeCount,
     approveRequest,
+    banner,
+    errorMessage,
     form,
     handleCreate,
     handleCreateUser,
+    isLoading,
+    isSaving,
     pendingRequests,
     rejectRequest,
     removeSpamClub,
@@ -76,13 +80,14 @@ export default function AdminDashboard() {
     updateUserRole,
     updateField,
     formatThresholdLabel,
+    summary,
     userForm,
     users,
   } = useAdminDashboard();
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    handleCreate();
+    void handleCreate();
   };
 
   const sectionItems = [
@@ -95,7 +100,7 @@ export default function AdminDashboard() {
     {
       key: 'users',
       label: 'Users',
-      count: users.length,
+      count: summary.totalUsers,
       icon: UserCog,
     },
     {
@@ -107,7 +112,7 @@ export default function AdminDashboard() {
     {
       key: 'spam',
       label: 'Spam',
-      count: spamQueue.length,
+      count: summary.spamRequests,
       icon: ShieldAlert,
     },
   ] as const;
@@ -115,7 +120,7 @@ export default function AdminDashboard() {
   const summaryCards = [
     {
       label: 'Total users',
-      value: users.length,
+      value: summary.totalUsers,
       delta: '+4.2%',
       icon: Users,
       tint: 'bg-gradient-primary',
@@ -131,7 +136,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Pending reviews',
-      value: pendingRequests.length,
+      value: summary.pendingRequests,
       delta: `+${thresholdReachedCount}`,
       icon: CalendarDays,
       tint: 'bg-gradient-student',
@@ -139,8 +144,8 @@ export default function AdminDashboard() {
     },
     {
       label: 'Flagged clubs',
-      value: spamQueue.length,
-      delta: `+${Math.max(1, spamQueue.length) * 9}%`,
+      value: summary.spamRequests,
+      delta: `+${Math.max(1, summary.spamRequests) * 9}%`,
       icon: ShieldAlert,
       tint: 'bg-gradient-admin',
       badge: 'bg-[#e8fbfd] text-[#1c9bb3]',
@@ -167,17 +172,17 @@ export default function AdminDashboard() {
     }));
 
   const activitySeries = [
-    pendingRequests.length * 8 + 22,
+    summary.pendingRequests * 8 + 22,
     activeClubs.length * 10 + 28,
-    users.length * 2 + 34,
+    summary.totalUsers * 2 + 34,
     thresholdReachedCount * 11 + 18,
-    spamQueue.length * 12 + 16,
+    summary.spamRequests * 12 + 16,
     requests.length * 5 + 24,
     activeCount * 12 + 26,
-    pendingRequests.length * 6 + 42,
+    summary.pendingRequests * 6 + 42,
     thresholdReachedCount * 8 + 35,
-    users.length * 3 + 39,
-    spamQueue.length * 9 + 20,
+    summary.totalUsers * 3 + 39,
+    summary.spamRequests * 9 + 20,
     activeClubs.length * 7 + 48,
   ].map((value) => Math.min(92, Math.max(18, value)));
 
@@ -240,7 +245,51 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <section className="dashboard-entrance dashboard-entrance-delay-1 mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="dashboard-entrance dashboard-entrance-delay-1 mt-6">
+          <div
+            className={`rounded-[28px] border px-5 py-4 shadow-soft ${
+              errorMessage
+                ? 'border-[#ffd2d5] bg-[#fff7f8] text-[#b23a49]'
+                : 'border-[color:var(--border)] bg-white/85 text-[#56708f]'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                  {errorMessage
+                    ? 'Sync error'
+                    : isLoading
+                    ? 'Loading live data'
+                    : isSaving
+                    ? 'Saving changes'
+                    : 'Live sync'}
+                </p>
+                <p className="mt-1 text-sm">
+                  {errorMessage ||
+                    (isLoading
+                      ? 'Cloudflare D1 дээрх өгөгдлийг admin dashboard руу ачаалж байна.'
+                      : isSaving
+                      ? 'Сүүлд хийсэн өөрчлөлтийг API-аар хадгалж байна.'
+                      : banner)}
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--primary-soft)] px-3 py-1.5 text-xs font-semibold text-[#4f6b8d]">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    errorMessage
+                      ? 'bg-[#ff6b77]'
+                      : isLoading || isSaving
+                      ? 'bg-[#f2b84b]'
+                      : 'bg-emerald-400'
+                  }`}
+                />
+                {errorMessage ? 'Needs attention' : 'Connected'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="dashboard-entrance dashboard-entrance-delay-2 mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => {
             const Icon = card.icon;
 
@@ -271,7 +320,7 @@ export default function AdminDashboard() {
           })}
         </section>
 
-        <section className="dashboard-entrance dashboard-entrance-delay-2 mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.95fr)_minmax(340px,0.9fr)]">
+        <section className="dashboard-entrance dashboard-entrance-delay-3 mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.95fr)_minmax(340px,0.9fr)]">
           <article className={`${panelClass} min-h-[430px]`}>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -407,7 +456,7 @@ export default function AdminDashboard() {
           </article>
         </section>
 
-        <section className="dashboard-entrance dashboard-entrance-delay-3 mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.95fr)_minmax(340px,0.9fr)]">
+        <section className="dashboard-entrance dashboard-entrance-delay-4 mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.95fr)_minmax(340px,0.9fr)]">
           <article className={panelClass}>
             <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -480,16 +529,16 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-end gap-3">
                         <button
                           type="button"
-                          onClick={() => rejectRequest(club.id)}
-                          disabled={club.requestStatus !== 'pending'}
+                          onClick={() => void rejectRequest(club.id)}
+                          disabled={club.requestStatus !== 'pending' || isSaving}
                           className="rounded-full px-3 py-2 text-sm font-semibold text-[#ff5c5c] transition hover:bg-[#fff1f2] hover:text-[#e33f3f] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Reject
                         </button>
                         <button
                           type="button"
-                          onClick={() => approveRequest(club.id)}
-                          disabled={club.requestStatus !== 'pending'}
+                          onClick={() => void approveRequest(club.id)}
+                          disabled={club.requestStatus !== 'pending' || isSaving}
                           className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(79,114,213,0.22)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#b5d0f3]"
                         >
                           Approve
@@ -574,7 +623,7 @@ export default function AdminDashboard() {
         </section>
 
         <section
-          className={`${panelClass} dashboard-entrance dashboard-entrance-delay-4 mt-6 rounded-[30px] border-[color:var(--border)] bg-[color:var(--card)] px-5 py-5`}
+          className={`${panelClass} dashboard-entrance dashboard-entrance-delay-5 mt-6 rounded-[30px] border-[color:var(--border)] bg-[color:var(--card)] px-5 py-5`}
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -776,6 +825,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-wrap items-center gap-3">
                       <button
                         type="submit"
+                        disabled={isSaving}
                         className="rounded-full bg-[color:var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(79,114,213,0.22)] transition hover:opacity-90"
                       >
                         Create request
@@ -878,7 +928,7 @@ export default function AdminDashboard() {
                 className="rounded-[28px] border border-[color:var(--border)] bg-[color:var(--card)] p-5"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  handleCreateUser();
+                  void handleCreateUser();
                 }}
               >
                 <div>
@@ -952,6 +1002,7 @@ export default function AdminDashboard() {
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <button
                     type="submit"
+                    disabled={isSaving}
                     className="rounded-full bg-[color:var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(79,114,213,0.22)] transition hover:opacity-90"
                   >
                     Add user
@@ -1041,18 +1092,20 @@ export default function AdminDashboard() {
                       <button
                         type="button"
                         onClick={() =>
-                          updateUserRole(
+                          void updateUserRole(
                             user.id,
                             user.role === 'student' ? 'teacher' : 'student'
                           )
                         }
+                        disabled={isSaving}
                         className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
                       >
                         {user.role === 'student' ? 'Make teacher' : 'Make student'}
                       </button>
                       <button
                         type="button"
-                        onClick={() => toggleUserRestriction(user.id)}
+                        onClick={() => void toggleUserRestriction(user.id)}
+                        disabled={isSaving}
                         className="rounded-full border border-[#e3c98a] bg-white px-4 py-2 text-xs font-semibold text-[#ae7922] transition hover:bg-[#fff8e8]"
                       >
                         {user.accountStatus === 'restricted'
@@ -1061,7 +1114,8 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => toggleUserBan(user.id)}
+                        onClick={() => void toggleUserBan(user.id)}
+                        disabled={isSaving}
                         className="rounded-full border border-[#f4b5ba] bg-white px-4 py-2 text-xs font-semibold text-[#de4a58] transition hover:bg-[#fff6f7]"
                       >
                         {user.accountStatus === 'banned' ? 'Unban' : 'Ban'}
@@ -1107,7 +1161,8 @@ export default function AdminDashboard() {
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => toggleClubStatus(club.id)}
+                      onClick={() => void toggleClubStatus(club.id)}
+                      disabled={isSaving}
                       className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
                     >
                       {club.clubStatus === 'active'
@@ -1153,7 +1208,8 @@ export default function AdminDashboard() {
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => removeSpamClub(club.id)}
+                      onClick={() => void removeSpamClub(club.id)}
+                      disabled={isSaving}
                       className="rounded-full bg-[#ff5c6b] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#e44757]"
                     >
                       Remove spam club

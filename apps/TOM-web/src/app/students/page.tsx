@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   ChevronRight,
@@ -10,6 +13,8 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
+
+import type { Club, ClubRequest } from '@/lib/tom-types';
 
 const tabs = ['Browse', 'Feed', 'Events', 'Create'];
 
@@ -66,64 +71,203 @@ const quickActions = [
   },
 ];
 
-const clubs = [
-  {
-    name: 'Robotics Lab',
-    category: 'STEM',
-    members: 42,
-    verified: true,
-    gradient: 'from-[#79b8f4] to-[#b0befc]',
-  },
-  {
-    name: 'Drama Society',
-    category: 'Arts',
-    members: 28,
-    verified: true,
-    gradient: 'from-[#69c8d7] to-[#84c6ef]',
-  },
-  {
-    name: 'Chess Masters',
-    category: 'Strategy',
-    members: 19,
-    verified: false,
-    gradient: 'from-[#658be1] to-[#7882db]',
-  },
-  {
-    name: 'Eco Warriors',
-    category: 'Community',
-    members: 56,
-    verified: true,
-    gradient: 'from-[#71b8f1] to-[#88caef]',
-  },
+const clubGradients = [
+  'from-[#79b8f4] to-[#b0befc]',
+  'from-[#69c8d7] to-[#84c6ef]',
+  'from-[#658be1] to-[#7882db]',
+  'from-[#71b8f1] to-[#88caef]',
 ];
 
-const activityItems = [
-  {
-    title: 'Club creation request ready',
-    detail: 'Art & Design Circle draft is 80% complete.',
-  },
-  {
-    title: '2 new comments on Robotics Lab',
-    detail: 'Teammates are planning the weekend build challenge.',
-  },
-  {
-    title: 'Friday event reminder',
-    detail: 'Chess Masters rapid tournament starts at 16:30.',
-  },
-];
+async function readJson<T>(response: Response) {
+  const data = (await response.json().catch(() => null)) as
+    | ({ error?: string } & T)
+    | null;
+
+  if (!response.ok) {
+    throw new Error(data?.error || `Request failed with status ${response.status}.`);
+  }
+
+  return data as T;
+}
+
+async function apiRequest<T>(input: string, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+
+  if (init?.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+
+  const response = await fetch(input, { ...init, headers });
+  return readJson<T>(response);
+}
 
 export default function StudentDashboard() {
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [requests, setRequests] = useState<ClubRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('Student dashboard live clubs-ийг харуулж байна.');
+  const [errorMessage, setErrorMessage] = useState('');
+
   const xpCurrent = 740;
   const xpGoal = 1000;
   const progress = (xpCurrent / xpGoal) * 100;
 
-  return (
-    <main className="min-h-screen sm:px-6 lg:px-8 pt-10">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="dashboard-entrance overflow-hidden rounded-[34px] ">
+  const loadData = async (nextMessage?: string) => {
+    const [clubData, requestData] = await Promise.all([
+      apiRequest<{ clubs: Club[] }>('/api/clubs'),
+      apiRequest<{ requests: ClubRequest[] }>('/api/club-requests?requestStatus=pending'),
+    ]);
 
-          <div className="relative overflow-hidden ">
-           
+    setClubs(clubData.clubs);
+    setRequests(requestData.requests);
+    setMessage(nextMessage || 'Student dashboard live clubs-ийг харуулж байна.');
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        await loadData();
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'Student dashboard data ачаалж чадсангүй.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const runAction = async (action: () => Promise<void>, fallback: string) => {
+    setIsSaving(true);
+    setErrorMessage('');
+
+    try {
+      await action();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : fallback);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateClubMetrics = async (
+    club: Club,
+    changes: { memberCount?: number; interestCount?: number },
+    nextMessage: string
+  ) => {
+    await runAction(async () => {
+      await apiRequest<{ club: Club }>(`/api/clubs/${club.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: club.name,
+          description: club.description,
+          teacherName: club.teacherName,
+          createdBy: club.createdBy,
+          interestCount: changes.interestCount ?? club.interestCount,
+          studentLimit: club.studentLimit,
+          memberCount: changes.memberCount ?? club.memberCount,
+          gradeRange: club.gradeRange,
+          allowedDays: club.allowedDays,
+          startDate: club.startDate,
+          endDate: club.endDate,
+          note: club.note,
+          status: club.status,
+          category: club.category,
+          verified: club.verified,
+        }),
+      });
+
+      await loadData(nextMessage);
+    }, 'Клубийн өгөгдлийг шинэчилж чадсангүй.');
+  };
+
+  const interestInClub = async (club: Club) => {
+    await updateClubMetrics(
+      club,
+      { interestCount: club.interestCount + 1 },
+      `${club.name} клубд сонирхол илэрхийллээ.`
+    );
+  };
+
+  const joinClub = async (club: Club) => {
+    await updateClubMetrics(
+      club,
+      {
+        interestCount: club.interestCount + 1,
+        memberCount: Math.min(club.studentLimit, club.memberCount + 1),
+      },
+      `${club.name} клубын гишүүнчлэлийн тоо шинэчлэгдлээ.`
+    );
+  };
+
+  const featuredClubs = useMemo(
+    () =>
+      clubs.slice(0, 4).map((club, index) => ({
+        ...club,
+        gradient: clubGradients[index % clubGradients.length],
+      })),
+    [clubs]
+  );
+
+  const activityItems = useMemo(() => {
+    const nextRequest = requests[0];
+    const activeClub = clubs.find((club) => club.status === 'active');
+    const biggestClub = [...clubs].sort((a, b) => b.memberCount - a.memberCount)[0];
+
+    return [
+      nextRequest
+        ? {
+            title: 'Club creation request ready',
+            detail: `${nextRequest.clubName} request ${nextRequest.interestCount} сонирхолтой байна.`,
+          }
+        : {
+            title: 'Club creation request ready',
+            detail: 'Одоогоор pending request алга байна.',
+          },
+      activeClub
+        ? {
+            title: `${activeClub.name} одоо идэвхтэй`,
+            detail: `${activeClub.teacherName} удирдаж байна. ${activeClub.memberCount} гишүүнтэй.`,
+          }
+        : {
+            title: 'Active club update',
+            detail: 'Идэвхтэй клуб одоогоор алга байна.',
+          },
+      biggestClub
+        ? {
+            title: 'Most active club',
+            detail: `${biggestClub.name} хамгийн олон ${biggestClub.memberCount} гишүүнтэй байна.`,
+          }
+        : {
+            title: 'Most active club',
+            detail: 'Клубийн өгөгдөл одоогоор хоосон байна.',
+          },
+    ];
+  }, [clubs, requests]);
+
+  return (
+    <main className="min-h-screen pt-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <section className="dashboard-entrance overflow-hidden rounded-[34px]">
+          <div className="relative overflow-hidden">
             <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_15rem]">
               <section className="dashboard-entrance dashboard-entrance-delay-1 min-w-0 rounded-[30px] bg-gradient-to-r from-[#6fb3f2] via-[#84aef6] to-[#b3aaf6] p-6 text-white shadow-[0_24px_50px_rgba(101,145,233,0.28)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
@@ -151,9 +295,7 @@ export default function StudentDashboard() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="mt-3 text-sm text-white/85">
-                    260 XP to Level 8
-                  </p>
+                  <p className="mt-3 text-sm text-white/85">260 XP to Level 8</p>
                 </div>
               </section>
 
@@ -166,31 +308,58 @@ export default function StudentDashboard() {
                 <div className="badge-marquee mt-6">
                   <div className="badge-marquee-track">
                     {badgeRail.map((badge, index) => {
-                    const Icon = badge.icon;
+                      const Icon = badge.icon;
 
-                    return (
-                      <article
-                        key={`${badge.name}-${index}`}
-                        className="badge-marquee-item flex min-w-[148px] flex-col items-center rounded-2xl bg-[#fbfdff] px-3 py-3 text-center"
-                      >
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${badge.color} text-white shadow-[0_12px_22px_rgba(111,158,231,0.22)]`}
+                      return (
+                        <article
+                          key={`${badge.name}-${index}`}
+                          className="badge-marquee-item flex min-w-[148px] flex-col items-center rounded-2xl bg-[#fbfdff] px-3 py-3 text-center"
                         >
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <p className="mt-3 text-sm font-semibold text-[#294262]">
-                          {badge.name}
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-[#8398b4]">
-                          {badge.description}
-                        </p>
-                      </article>
-                    );
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${badge.color} text-white shadow-[0_12px_22px_rgba(111,158,231,0.22)]`}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <p className="mt-3 text-sm font-semibold text-[#294262]">
+                            {badge.name}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-[#8398b4]">
+                            {badge.description}
+                          </p>
+                        </article>
+                      );
                     })}
                   </div>
                 </div>
               </aside>
             </div>
+
+            <section className="dashboard-entrance dashboard-entrance-delay-3 mt-6 rounded-[28px] border border-[#dce7f8] bg-white/90 p-5 shadow-[0_16px_44px_rgba(31,73,132,0.06)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f86a7]">
+                    {errorMessage
+                      ? 'Sync error'
+                      : isLoading
+                      ? 'Loading live data'
+                      : isSaving
+                      ? 'Saving changes'
+                      : 'Connected'}
+                  </p>
+                  <p className="mt-1 text-sm text-[#58708f]">
+                    {errorMessage ||
+                      (isLoading
+                        ? 'Cloudflare D1 дээрх клуб, хүсэлтийн өгөгдлийг student page дээр ачаалж байна.'
+                        : isSaving
+                        ? 'Клуб дээр хийсэн student action-ийг хадгалж байна.'
+                        : message)}
+                  </p>
+                </div>
+                <div className="rounded-full bg-[#eef5ff] px-4 py-2 text-sm font-semibold text-[#4f6b8d]">
+                  {clubs.length} live clubs
+                </div>
+              </div>
+            </section>
 
             <section className="dashboard-entrance dashboard-entrance-delay-3 mt-6 grid gap-4 lg:grid-cols-3">
               {quickActions.map((action) => {
@@ -212,7 +381,10 @@ export default function StudentDashboard() {
                     <p className="mt-2 text-sm leading-6 text-[#6f86a6]">
                       {action.description}
                     </p>
-                    <button className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#5e95e5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4b85d8]">
+                    <button
+                      disabled
+                      className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#5e95e5] px-4 py-2 text-sm font-semibold text-white opacity-70"
+                    >
                       {action.cta}
                       <ChevronRight className="h-4 w-4" />
                     </button>
@@ -233,9 +405,8 @@ export default function StudentDashboard() {
                 Browse clubs, join communities, and stay active
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7086a5] sm:text-base">
-                Discover clubs, mark the ones you&apos;re interested in, join
-                after approval, and build your reputation through events,
-                posts, comments, XP, and badges.
+                Discover clubs from the live TOM database, follow interest levels,
+                and update the visible membership momentum right from this page.
               </p>
             </div>
 
@@ -257,9 +428,9 @@ export default function StudentDashboard() {
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[1.5fr_0.7fr]">
             <div className="grid gap-5 md:grid-cols-2">
-              {clubs.map((club, index) => (
+              {featuredClubs.map((club, index) => (
                 <article
-                  key={club.name}
+                  key={club.id}
                   className={`rounded-[28px] border border-[#dce8f8] bg-white shadow-[0_18px_45px_rgba(29,66,123,0.07)] dashboard-entrance ${
                     index === 1
                       ? 'dashboard-entrance-delay-1'
@@ -296,8 +467,11 @@ export default function StudentDashboard() {
                         </h3>
                         <div className="mt-2 flex items-center gap-2 text-sm text-[#7f94b0]">
                           <Users className="h-4 w-4" />
-                          <span>{club.members} members</span>
+                          <span>{club.memberCount} members</span>
                         </div>
+                        <p className="mt-2 text-xs text-[#7f94b0]">
+                          Interest {club.interestCount} · {club.teacherName}
+                        </p>
                       </div>
                       <span className="rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#5c7ea5]">
                         {club.category}
@@ -305,11 +479,19 @@ export default function StudentDashboard() {
                     </div>
 
                     <div className="mt-6 flex gap-3">
-                      <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-[#d6e1f2] px-4 py-2.5 text-sm font-semibold text-[#4f6587] transition hover:bg-[#f6f9ff]">
+                      <button
+                        disabled={isSaving}
+                        onClick={() => void interestInClub(club)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-[#d6e1f2] px-4 py-2.5 text-sm font-semibold text-[#4f6587] transition hover:bg-[#f6f9ff] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
                         <Heart className="h-4 w-4" />
                         Interested
                       </button>
-                      <button className="inline-flex flex-1 items-center justify-center rounded-full bg-[#67a2ea] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#568fd8]">
+                      <button
+                        disabled={isSaving}
+                        onClick={() => void joinClub(club)}
+                        className="inline-flex flex-1 items-center justify-center rounded-full bg-[#67a2ea] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#568fd8] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
                         Join
                       </button>
                     </div>
@@ -327,33 +509,33 @@ export default function StudentDashboard() {
                   </h3>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[#7086a5]">
-                  Complete student tasks to keep leveling up across your club
-                  journey.
+                  Student actions on this page now update club interest and member
+                  metrics in the live TOM data source.
                 </p>
 
                 <div className="mt-5 space-y-3">
                   <div className="rounded-2xl bg-[#eef6ff] p-4">
                     <p className="text-sm font-semibold text-[#224064]">
-                      Submit a club idea
+                      Show interest in a club
                     </p>
                     <p className="mt-1 text-xs leading-5 text-[#7086a6]">
-                      Launch a new club request and earn a creativity bonus.
+                      The Interested button increases the visible interest count.
                     </p>
                   </div>
                   <div className="rounded-2xl bg-[#eefcfb] p-4">
                     <p className="text-sm font-semibold text-[#224064]">
-                      Comment on a post
+                      Join an active community
                     </p>
                     <p className="mt-1 text-xs leading-5 text-[#7086a6]">
-                      Keep the community active and unlock social XP.
+                      Join updates both interest and member totals for demo flow.
                     </p>
                   </div>
                   <div className="rounded-2xl bg-[#f2f1ff] p-4">
                     <p className="text-sm font-semibold text-[#224064]">
-                      Attend this week&apos;s event
+                      Track pending club ideas
                     </p>
                     <p className="mt-1 text-xs leading-5 text-[#7086a6]">
-                      Show up, participate, and stack event badges.
+                      Live activity reflects what is currently in the review queue.
                     </p>
                   </div>
                 </div>
