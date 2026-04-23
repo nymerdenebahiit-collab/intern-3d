@@ -5,23 +5,19 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
-  PlusCircle,
   CalendarDays,
-  BookOpen,
-  Trophy,
+  ListCheck,
   GraduationCap,
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/students', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/students/clubs', label: 'Clubs', icon: Users },
-  { href: '/students/create-club', label: 'Create Club', icon: PlusCircle },
-  { href: '/students/events', label: 'Events', icon: CalendarDays },
-  { href: '/students/detail', label: 'Club Detail', icon: BookOpen },
-  { href: '/students/gamification', label: 'Gamification', icon: Trophy },
+  { href: '/teacher', label: 'Teacher Panel', icon: LayoutDashboard },
+  { href: '/teacher/clubs', label: 'Clubs', icon: Users },
+  { href: '/teacher/events', label: 'Events', icon: CalendarDays },
+  { href: '/teacher/club-detail', label: 'Club Detail', icon: ListCheck },
 ];
 
-export default function StudentLayout() {
+export default function TeacherLayout() {
   const pathname = usePathname();
 
   return (
@@ -33,7 +29,7 @@ export default function StudentLayout() {
           </div>
           <div>
             <p className="text-sm font-semibold text-[#1a3560]">School Clubs</p>
-            <p className="text-xs text-[#7a90af]">Student view</p>
+            <p className="text-xs text-[#7a90af]">Teacher view</p>
           </div>
         </div>
       </Link>

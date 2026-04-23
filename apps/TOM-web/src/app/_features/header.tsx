@@ -7,8 +7,10 @@ import { GraduationCap } from 'lucide-react';
 export default function Header() {
   const pathname = usePathname();
   const isStudentRoute = pathname.startsWith('/students');
+  const isTeacherRoute = pathname.startsWith('/teacher');
+  const hasLeftSidebar = isStudentRoute || isTeacherRoute;
 
-  if (pathname === '/teacher' || pathname === '/admin') {
+  if (pathname === '/admin') {
     return null;
   }
 
@@ -16,7 +18,7 @@ export default function Header() {
     <>
       <header
         className={`fixed top-0 left-0 z-50 flex h-16 w-full items-center justify-between border-b border-gray-100 bg-white shadow-sm ${
-          isStudentRoute ? 'pl-72 pr-20' : 'px-20'
+          hasLeftSidebar ? 'pl-72 pr-20' : 'px-20'
         }`}
       >
         <div className="flex justify-between" />
@@ -27,9 +29,15 @@ export default function Header() {
         </Link>
 
         <div className="flex flex-1 justify-end">
-          <button className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
-            Sign in
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full bg-[color:var(--muted)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] md:flex">
+              <span className="h-2 w-2 rounded-full bg-[color:var(--success)]" />
+              Online
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-sm font-semibold text-[color:var(--primary)]">
+              JD
+            </div>
+          </div>
         </div>
       </header>
       <div className="h-16" aria-hidden="true" />
