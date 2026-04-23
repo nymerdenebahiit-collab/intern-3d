@@ -6,6 +6,8 @@ import {
 } from '@/app/admin/admin-data'
 import { getTomDb } from '@/lib/d1'
 import type {
+  Badge,
+  BadgeInput,
   Club,
   ClubInput,
   ClubRequest,
@@ -16,7 +18,10 @@ import type {
   ManagedUser,
   RequestStatus,
   SchoolEvent,
+  UserBadge,
   UserInput,
+  XpLog,
+  XpSource,
 } from '@/lib/tom-types'
 
 type ClubRow = {
@@ -757,6 +762,49 @@ export async function deleteEvent(id: string) {
   return true
 }
 
+export async function getEventParticipants(eventId: string) {
+  const db = getTomDb()
+  const result = await db
+    .prepare(
+      `SELECT u.id, u.full_name, u.email, u.role, ep.joined_at
+       FROM event_participants ep
+       JOIN users u ON u.id = ep.user_id
+       WHERE ep.event_id = ?
+       ORDER BY ep.joined_at ASC`
+    )
+    .bind(eventId)
+    .all<{ id: string; full_name: string; email: string; role: string; joined_at: string }>()
+
+  return result.results.map((row) => ({
+    id: row.id,
+    name: row.full_name,
+    email: row.email,
+    role: row.role,
+    joinedAt: row.joined_at,
+  }))
+}
+
+export async function joinEvent(eventId: string, userId: string) {
+  const db = getTomDb()
+  const now = nowIso()
+
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO event_participants (id, event_id, user_id, joined_at)
+       VALUES (lower(hex(randomblob(16))), ?, ?, ?)`
+    )
+    .bind(eventId, userId, now)
+    .run()
+}
+
+export async function leaveEvent(eventId: string, userId: string) {
+  const db = getTomDb()
+  await db
+    .prepare('DELETE FROM event_participants WHERE event_id = ? AND user_id = ?')
+    .bind(eventId, userId)
+    .run()
+}
+
 export async function autoJoinAllUsers(eventId: string) {
   const db = getTomDb()
   const now = nowIso()
@@ -768,6 +816,188 @@ export async function autoJoinAllUsers(eventId: string) {
        FROM users`
     )
     .bind(eventId, now)
+    .run()
+}
+
+type BadgeRow = {
+  id: string
+  name: string
+  description: string
+  icon: string
+  xp_threshold: number
+  event_count_threshold: number
+  club_count_threshold: number
+  created_at: string
+  updated_at: string
+}
+
+function mapBadgeRow(row: BadgeRow): Badge {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    icon: row.icon,
+    xpThreshold: row.xp_threshold,
+    eventCountThreshold: row.event_count_threshold,
+    clubCountThreshold: row.club_count_threshold,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+export async function listBadges(): Promise<Badge[]> {
+  const db = getTomDb()
+  const result = await db.prepare('SELECT * FROM badges ORDER BY name ASC').all<BadgeRow>()
+  return result.results.map(mapBadgeRow)
+}
+
+export async function getBadge(id: string): Promise<Badge | null> {
+  const db = getTomDb()
+  const row = await db.prepare('SELECT * FROM badges WHERE id = ? LIMIT 1').bind(id).first<BadgeRow>()
+  return row ? mapBadgeRow(row) : null
+}
+
+export async function upsertBadge(input: BadgeInput, id?: string): Promise<Badge> {
+  const db = getTomDb()
+  const now = nowIso()
+  const current = id ? await getBadge(id) : null
+  const badge: Badge = {
+    id: current?.id ?? crypto.randomUUID(),
+    name: input.name,
+    description: input.description ?? current?.description ?? '',
+    icon: input.icon ?? current?.icon ?? '🏅',
+    xpThreshold: input.xpThreshold ?? current?.xpThreshold ?? 0,
+    eventCountThreshold: input.eventCountThreshold ?? current?.eventCountThreshold ?? 0,
+    clubCountThreshold: input.clubCountThreshold ?? current?.clubCountThreshold ?? 0,
+    createdAt: current?.createdAt ?? now,
+    updatedAt: now,
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO badges (id, name, description, icon, xp_threshold, event_count_threshold, club_count_threshold, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         description = excluded.description,
+         icon = excluded.icon,
+         xp_threshold = excluded.xp_threshold,
+         event_count_threshold = excluded.event_count_threshold,
+         club_count_threshold = excluded.club_count_threshold,
+         updated_at = excluded.updated_at`
+    )
+    .bind(badge.id, badge.name, badge.description, badge.icon, badge.xpThreshold, badge.eventCountThreshold, badge.clubCountThreshold, badge.createdAt, badge.updatedAt)
+    .run()
+
+  return badge
+}
+
+export async function deleteBadge(id: string): Promise<boolean> {
+  const db = getTomDb()
+  const current = await getBadge(id)
+  if (!current) return false
+  await db.prepare('DELETE FROM badges WHERE id = ?').bind(id).run()
+  return true
+}
+
+export async function checkAndAwardBadges(userId: string): Promise<UserBadge[]> {
+  const db = getTomDb()
+  const [badges, xpTotal, eventCount, clubCount] = await Promise.all([
+    listBadges(),
+    getUserXpTotal(userId),
+    db.prepare('SELECT COUNT(*) as count FROM event_participants WHERE user_id = ?').bind(userId).first<{ count: number }>().then(r => r?.count ?? 0),
+    db.prepare('SELECT club_count FROM users WHERE id = ? LIMIT 1').bind(userId).first<{ club_count: number }>().then(r => r?.club_count ?? 0),
+  ])
+
+  const awarded: UserBadge[] = []
+  const now = nowIso()
+
+  for (const badge of badges) {
+    const qualifies =
+      (badge.xpThreshold === 0 || xpTotal >= badge.xpThreshold) &&
+      (badge.eventCountThreshold === 0 || eventCount >= badge.eventCountThreshold) &&
+      (badge.clubCountThreshold === 0 || clubCount >= badge.clubCountThreshold)
+
+    if (!qualifies) continue
+
+    const existing = await db
+      .prepare('SELECT id FROM user_badges WHERE user_id = ? AND badge_id = ? LIMIT 1')
+      .bind(userId, badge.id)
+      .first<{ id: string }>()
+
+    if (existing) continue
+
+    const id = crypto.randomUUID()
+    await db
+      .prepare('INSERT INTO user_badges (id, user_id, badge_id, awarded_at) VALUES (?, ?, ?, ?)')
+      .bind(id, userId, badge.id, now)
+      .run()
+
+    awarded.push({ id, userId, badgeId: badge.id, awardedAt: now })
+  }
+
+  return awarded
+}
+
+export async function grantXp(userId: string, amount: number, reason: string, source: XpSource): Promise<XpLog> {
+  const db = getTomDb()
+  const id = crypto.randomUUID()
+  const now = nowIso()
+
+  await db
+    .prepare('INSERT INTO xp_logs (id, user_id, amount, reason, source, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(id, userId, amount, reason, source, now)
+    .run()
+
+  return { id, userId, amount, reason, source, createdAt: now }
+}
+
+export async function getUserXpTotal(userId: string): Promise<number> {
+  const db = getTomDb()
+  const row = await db
+    .prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM xp_logs WHERE user_id = ?')
+    .bind(userId)
+    .first<{ total: number }>()
+
+  return row?.total ?? 0
+}
+
+export async function listXpLogs(userId?: string): Promise<XpLog[]> {
+  const db = getTomDb()
+  const where = userId ? 'WHERE user_id = ?' : ''
+  const bindings = userId ? [userId] : []
+
+  const result = await db
+    .prepare(`SELECT * FROM xp_logs ${where} ORDER BY created_at DESC LIMIT 100`)
+    .bind(...bindings)
+    .all<{ id: string; user_id: string; amount: number; reason: string; source: XpSource; created_at: string }>()
+
+  return result.results.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    amount: row.amount,
+    reason: row.reason,
+    source: row.source,
+    createdAt: row.created_at,
+  }))
+}
+
+export async function getXpConfig(): Promise<Record<string, string>> {
+  const db = getTomDb()
+  const result = await db
+    .prepare('SELECT key, value FROM xp_config')
+    .all<{ key: string; value: string }>()
+
+  return Object.fromEntries(result.results.map((row) => [row.key, row.value]))
+}
+
+export async function setXpConfig(key: string, value: string): Promise<void> {
+  const db = getTomDb()
+  const now = nowIso()
+
+  await db
+    .prepare('INSERT INTO xp_config (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at')
+    .bind(key, value, now)
     .run()
 }
 

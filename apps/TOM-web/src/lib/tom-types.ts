@@ -1,3 +1,42 @@
+export type XpSource = 'manual' | 'event' | 'club' | 'badge'
+
+export type XpLog = {
+  id: string
+  userId: string
+  amount: number
+  reason: string
+  source: XpSource
+  createdAt: string
+}
+
+export type Badge = {
+  id: string
+  name: string
+  description: string
+  icon: string
+  xpThreshold: number
+  eventCountThreshold: number
+  clubCountThreshold: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type UserBadge = {
+  id: string
+  userId: string
+  badgeId: string
+  awardedAt: string
+}
+
+export type XpLogInput = Partial<Omit<XpLog, 'id' | 'createdAt'>> & {
+  userId: string
+  amount: number
+}
+
+export type BadgeInput = Partial<Omit<Badge, 'id' | 'createdAt' | 'updatedAt'>> & {
+  name: string
+}
+
 export type ClubStatus = 'draft' | 'pending' | 'active' | 'paused' | 'archived' | 'spam'
 export type RequestStatus = 'pending' | 'approved' | 'rejected'
 export type UserRole = 'student' | 'teacher' | 'admin'
