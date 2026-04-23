@@ -2,7 +2,6 @@ import { badRequest, notFound, ok, serverError } from '@/lib/tom-http'
 import { getUser, upsertUser } from '@/lib/tom-db'
 import { parseUserInput } from '@/lib/tom-validators'
 
-export const runtime = 'edge'
 
 export async function GET(_request: Request, context: { params: Promise<{ userId: string }> }) {
   try {

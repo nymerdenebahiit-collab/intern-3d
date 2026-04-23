@@ -2,7 +2,6 @@ import { listBadges, upsertBadge } from '@/lib/tom-db'
 import { badRequest, ok, serverError } from '@/lib/tom-http'
 import type { BadgeInput } from '@/lib/tom-types'
 
-export const runtime = 'edge'
 
 export async function GET() {
   try {

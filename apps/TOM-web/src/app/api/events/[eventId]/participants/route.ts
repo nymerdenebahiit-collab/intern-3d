@@ -1,7 +1,6 @@
 import { getEvent, getEventParticipants } from '@/lib/tom-db'
 import { notFound, ok, serverError } from '@/lib/tom-http'
 
-export const runtime = 'edge'
 
 type Params = { params: Promise<{ eventId: string }> }
 

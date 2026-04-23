@@ -2,7 +2,6 @@ import { badRequest, ok, serverError } from '@/lib/tom-http'
 import { listClubRequests, upsertClubRequest } from '@/lib/tom-db'
 import { parseClubRequestInput } from '@/lib/tom-validators'
 
-export const runtime = 'edge'
 
 export async function GET(request: Request) {
   try {

@@ -2,7 +2,6 @@ import { getUser, grantXp } from '@/lib/tom-db'
 import { badRequest, notFound, ok, serverError } from '@/lib/tom-http'
 import type { XpSource } from '@/lib/tom-types'
 
-export const runtime = 'edge'
 
 const validSources: XpSource[] = ['manual', 'event', 'club', 'badge']
 

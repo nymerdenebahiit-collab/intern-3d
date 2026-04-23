@@ -6,6 +6,7 @@ import { GraduationCap } from 'lucide-react';
 
 export default function Header() {
   const pathname = usePathname();
+  const isStudentRoute = pathname.startsWith('/students');
 
   if (pathname === '/teacher' || pathname === '/admin') {
     return null;
@@ -13,7 +14,11 @@ export default function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 z-50 flex h-16 w-full items-center justify-between border-b border-gray-100 bg-white px-20 shadow-sm">
+      <header
+        className={`fixed top-0 left-0 z-50 flex h-16 w-full items-center justify-between border-b border-gray-100 bg-white shadow-sm ${
+          isStudentRoute ? 'pl-72 pr-20' : 'px-20'
+        }`}
+      >
         <div className="flex justify-between" />
 
         <Link href="/" className="flex items-center gap-3">

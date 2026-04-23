@@ -1,7 +1,6 @@
 import { checkAndAwardBadges, getUser } from '@/lib/tom-db'
 import { badRequest, notFound, ok, serverError } from '@/lib/tom-http'
 
-export const runtime = 'edge'
 
 export async function POST(request: Request) {
   try {

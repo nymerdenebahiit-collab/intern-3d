@@ -2,7 +2,6 @@ import { deleteEvent, getEvent, upsertEvent } from '@/lib/tom-db'
 import { notFound, ok, serverError } from '@/lib/tom-http'
 import type { EventStatus } from '@/lib/tom-types'
 
-export const runtime = 'edge'
 
 type Params = { params: Promise<{ eventId: string }> }
 

@@ -57,7 +57,8 @@ const quickActions = [
   },
   {
     title: 'Post to your community',
-    description: 'Share updates, comment on plans, and keep your members engaged.',
+    description:
+      'Share updates, comment on plans, and keep your members engaged.',
     icon: MessageCircle,
     accent: 'bg-[#ecfbff] text-[#20a1bf]',
     cta: 'Create post',
@@ -84,7 +85,9 @@ async function readJson<T>(response: Response) {
     | null;
 
   if (!response.ok) {
-    throw new Error(data?.error || `Request failed with status ${response.status}.`);
+    throw new Error(
+      data?.error || `Request failed with status ${response.status}.`
+    );
   }
 
   return data as T;
@@ -106,7 +109,9 @@ export default function StudentDashboard() {
   const [requests, setRequests] = useState<ClubRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('Student dashboard live clubs-ийг харуулж байна.');
+  const [message, setMessage] = useState(
+    'Student dashboard live clubs-ийг харуулж байна.'
+  );
   const [errorMessage, setErrorMessage] = useState('');
 
   const xpCurrent = 740;
@@ -116,12 +121,16 @@ export default function StudentDashboard() {
   const loadData = async (nextMessage?: string) => {
     const [clubData, requestData] = await Promise.all([
       apiRequest<{ clubs: Club[] }>('/api/clubs'),
-      apiRequest<{ requests: ClubRequest[] }>('/api/club-requests?requestStatus=pending'),
+      apiRequest<{ requests: ClubRequest[] }>(
+        '/api/club-requests?requestStatus=pending'
+      ),
     ]);
 
     setClubs(clubData.clubs);
     setRequests(requestData.requests);
-    setMessage(nextMessage || 'Student dashboard live clubs-ийг харуулж байна.');
+    setMessage(
+      nextMessage || 'Student dashboard live clubs-ийг харуулж байна.'
+    );
   };
 
   useEffect(() => {
@@ -230,7 +239,9 @@ export default function StudentDashboard() {
   const activityItems = useMemo(() => {
     const nextRequest = requests[0];
     const activeClub = clubs.find((club) => club.status === 'active');
-    const biggestClub = [...clubs].sort((a, b) => b.memberCount - a.memberCount)[0];
+    const biggestClub = [...clubs].sort(
+      (a, b) => b.memberCount - a.memberCount
+    )[0];
 
     return [
       nextRequest
@@ -264,12 +275,12 @@ export default function StudentDashboard() {
   }, [clubs, requests]);
 
   return (
-    <main className="min-h-screen pt-10 sm:px-6 lg:px-8">
+    <main className="min-h-screen ">
       <div className="mx-auto max-w-6xl space-y-6">
         <section className="dashboard-entrance overflow-hidden rounded-[34px]">
           <div className="relative overflow-hidden">
             <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_15rem]">
-              <section className="dashboard-entrance dashboard-entrance-delay-1 min-w-0 rounded-[30px] bg-gradient-to-r from-[#6fb3f2] via-[#84aef6] to-[#b3aaf6] p-6 text-white shadow-[0_24px_50px_rgba(101,145,233,0.28)] sm:p-7">
+              <section className="dashboard-entrance dashboard-entrance-delay-1 min-w-0 rounded-[30px] bg-blue-950 p-6 text-white shadow-[0_24px_50px_rgba(101,145,233,0.28)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-white/80">
@@ -295,7 +306,9 @@ export default function StudentDashboard() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="mt-3 text-sm text-white/85">260 XP to Level 8</p>
+                  <p className="mt-3 text-sm text-white/85">
+                    260 XP to Level 8
+                  </p>
                 </div>
               </section>
 
@@ -405,8 +418,9 @@ export default function StudentDashboard() {
                 Browse clubs, join communities, and stay active
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7086a5] sm:text-base">
-                Discover clubs from the live TOM database, follow interest levels,
-                and update the visible membership momentum right from this page.
+                Discover clubs from the live TOM database, follow interest
+                levels, and update the visible membership momentum right from
+                this page.
               </p>
             </div>
 
@@ -509,8 +523,8 @@ export default function StudentDashboard() {
                   </h3>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[#7086a5]">
-                  Student actions on this page now update club interest and member
-                  metrics in the live TOM data source.
+                  Student actions on this page now update club interest and
+                  member metrics in the live TOM data source.
                 </p>
 
                 <div className="mt-5 space-y-3">
@@ -519,7 +533,8 @@ export default function StudentDashboard() {
                       Show interest in a club
                     </p>
                     <p className="mt-1 text-xs leading-5 text-[#7086a6]">
-                      The Interested button increases the visible interest count.
+                      The Interested button increases the visible interest
+                      count.
                     </p>
                   </div>
                   <div className="rounded-2xl bg-[#eefcfb] p-4">
@@ -527,7 +542,8 @@ export default function StudentDashboard() {
                       Join an active community
                     </p>
                     <p className="mt-1 text-xs leading-5 text-[#7086a6]">
-                      Join updates both interest and member totals for demo flow.
+                      Join updates both interest and member totals for demo
+                      flow.
                     </p>
                   </div>
                   <div className="rounded-2xl bg-[#f2f1ff] p-4">
@@ -535,7 +551,8 @@ export default function StudentDashboard() {
                       Track pending club ideas
                     </p>
                     <p className="mt-1 text-xs leading-5 text-[#7086a6]">
-                      Live activity reflects what is currently in the review queue.
+                      Live activity reflects what is currently in the review
+                      queue.
                     </p>
                   </div>
                 </div>
