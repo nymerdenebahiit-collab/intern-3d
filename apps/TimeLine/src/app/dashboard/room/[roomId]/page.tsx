@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { gql } from '@apollo/client'
 import { useQuery } from '@apollo/client/react'
@@ -124,6 +124,36 @@ type RoomDetailQueryResult = {
     room: Room
     events: ScheduleEvent[]
   } | null
+}
+
+type EventFormData = {
+  title: string
+  type: EventType
+  daysOfWeek: number[]
+  startTime: string
+  endTime: string
+  instructor: string
+  notes: string
+  isOverride: boolean
+  validFrom: string
+  validUntil: string
+  date: string
+}
+
+function createEventFormData(event: ScheduleEvent | null): EventFormData {
+  return {
+    title: event?.title || '',
+    type: event?.type || 'class',
+    daysOfWeek: event?.daysOfWeek || [1],
+    startTime: event?.startTime || '09:00',
+    endTime: event?.endTime || '12:00',
+    instructor: event?.instructor || '',
+    notes: event?.notes || '',
+    isOverride: event?.isOverride || false,
+    validFrom: event?.validFrom || '',
+    validUntil: event?.validUntil || '',
+    date: event?.date || '',
+  }
 }
 
 function timeToMinutes(time: string): number {
@@ -709,38 +739,13 @@ function EventFormDialog({
   onSave: () => void
 }) {
   const isEditing = !!event
-  const [formData, setFormData] = useState({
-    title: event?.title || '',
-    type: event?.type || 'class' as EventType,
-    daysOfWeek: event?.daysOfWeek || [1],
-    startTime: event?.startTime || '09:00',
-    endTime: event?.endTime || '12:00',
-    instructor: event?.instructor || '',
-    notes: event?.notes || '',
-    isOverride: event?.isOverride || false,
-    validFrom: event?.validFrom || '',
-    validUntil: event?.validUntil || '',
-    date: event?.date || '',
-  })
+  const [formData, setFormData] = useState<EventFormData>(() => createEventFormData(event))
 
-  // Reset form when event changes
-  useState(() => {
-    if (event) {
-      setFormData({
-        title: event.title,
-        type: event.type,
-        daysOfWeek: event.daysOfWeek,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        instructor: event.instructor || '',
-        notes: event.notes || '',
-        isOverride: event.isOverride,
-        validFrom: event.validFrom || '',
-        validUntil: event.validUntil || '',
-        date: event.date || '',
-      })
+  useEffect(() => {
+    if (open) {
+      setFormData(createEventFormData(event))
     }
-  })
+  }, [event, open])
 
   const weekdays = DAYS_OF_WEEK.filter(d => d.value >= 1 && d.value <= 5)
 

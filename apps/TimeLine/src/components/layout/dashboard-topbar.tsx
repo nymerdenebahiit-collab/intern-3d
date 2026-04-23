@@ -1,22 +1,42 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useRole } from '@/lib/role-context'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Monitor, LogOut, Orbit } from 'lucide-react'
 
-export function DashboardTopbar() {
-  const { role, user, logout } = useRole()
+type ClockDisplay = {
+  formattedDate: string
+  formattedTime: string
+}
 
-  const now = new Date()
-  const formattedDate = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`
-  const formattedTime = new Intl.DateTimeFormat('mn-MN', {
+const createClockDisplay = (date: Date): ClockDisplay => ({
+  formattedDate: `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`,
+  formattedTime: new Intl.DateTimeFormat('mn-MN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(now)
+  }).format(date),
+})
+
+export function DashboardTopbar() {
+  const { role, user, logout } = useRole()
+  const [clockDisplay, setClockDisplay] = useState<ClockDisplay | null>(null)
+
+  useEffect(() => {
+    setClockDisplay(createClockDisplay(new Date()))
+    const intervalId = window.setInterval(() => {
+      setClockDisplay(createClockDisplay(new Date()))
+    }, 60000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  const formattedDate = clockDisplay?.formattedDate ?? '--/--/----'
+  const formattedTime = clockDisplay?.formattedTime ?? '--:--'
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background">
