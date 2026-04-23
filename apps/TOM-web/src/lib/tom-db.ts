@@ -659,16 +659,35 @@ function normalizeEvent(input: EventInput, current?: SchoolEvent): SchoolEvent {
   }
 }
 
-export async function listEvents() {
+export async function listEvents(params: {
+  status?: string | null
+  q?: string | null
+} = {}) {
   const db = getTomDb()
+  const filters: string[] = []
+  const bindings: Array<string | number> = []
+
+  if (params.status) {
+    filters.push('e.status = ?')
+    bindings.push(params.status)
+  }
+
+  if (params.q) {
+    filters.push('(e.title LIKE ? OR e.description LIKE ? OR e.location LIKE ?)')
+    bindings.push(`%${params.q}%`, `%${params.q}%`, `%${params.q}%`)
+  }
+
+  const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : ''
   const result = await db
     .prepare(
       `SELECT e.*, COUNT(ep.id) AS participant_count
        FROM events e
        LEFT JOIN event_participants ep ON ep.event_id = e.id
+       ${where}
        GROUP BY e.id
        ORDER BY e.event_date ASC, e.created_at DESC`
     )
+    .bind(...bindings)
     .all<EventRow>()
 
   return result.results.map(mapEventRow)
