@@ -4,13 +4,11 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  ArrowLeft,
   Calendar,
   CheckCircle2,
   ClipboardList,
   Plus,
   ShieldCheck,
-  Sparkles,
   XCircle,
 } from 'lucide-react';
 
@@ -30,7 +28,9 @@ async function readJson<T>(response: Response) {
     | null;
 
   if (!response.ok) {
-    throw new Error(data?.error || `Request failed with status ${response.status}.`);
+    throw new Error(
+      data?.error || `Request failed with status ${response.status}.`
+    );
   }
 
   return data as T;
@@ -47,47 +47,6 @@ async function apiRequest<T>(input: string, init?: RequestInit) {
   return readJson<T>(response);
 }
 
-function PanelHeader() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-[color:var(--border)]/60 bg-[color:var(--background)]/80 backdrop-blur-xl">
-      <div className="container mx-auto flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)] transition-colors hover:text-[color:var(--foreground)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Home</span>
-          </Link>
-          <div className="h-6 w-px bg-[color:var(--border)]" />
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-teacher shadow-soft flex h-9 w-9 items-center justify-center rounded-xl">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold leading-tight text-[color:var(--foreground)]">
-                Teacher Panel
-              </h1>
-              <p className="text-xs leading-tight text-[color:var(--muted-foreground)]">
-                Supervise &amp; support
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-2 rounded-full bg-[color:var(--muted)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] md:flex">
-            <span className="h-2 w-2 rounded-full bg-[color:var(--success)]" />
-            Online
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-sm font-semibold text-[color:var(--primary)]">
-            JD
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-}
-
 export default function TeacherDashboard() {
   const [requests, setRequests] = useState<ClubRequest[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -100,7 +59,9 @@ export default function TeacherDashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('Teacher dashboard live data руу холбогдсон.');
+  const [message, setMessage] = useState(
+    'Teacher dashboard live data руу холбогдсон.'
+  );
   const [errorMessage, setErrorMessage] = useState('');
 
   const loadData = async (nextMessage?: string) => {
@@ -243,14 +204,17 @@ export default function TeacherDashboard() {
         accent: 'bg-gradient-student',
       },
     ],
-    [clubs.length, inactiveCount, summary.pendingRequests, summary.thresholdReachedRequests]
+    [
+      clubs.length,
+      inactiveCount,
+      summary.pendingRequests,
+      summary.thresholdReachedRequests,
+    ]
   );
 
   return (
-    <div className="min-h-screen bg-gradient-hero font-sans text-[color:var(--foreground)]">
-      <PanelHeader />
-
-      <main className="container mx-auto space-y-8 px-6 py-8">
+    <div className="min-h-screen font-sans text-[color:var(--foreground)]">
+      <main className="container mx-auto space-y-8 ">
         <section
           className={`shadow-soft rounded-3xl border px-5 py-4 ${
             errorMessage
@@ -334,21 +298,25 @@ export default function TeacherDashboard() {
                   <div>
                     <p className="font-medium">{request.clubName}</p>
                     <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                      by {request.createdBy} · {request.startDate || 'No date'} ·{' '}
-                      {request.interestCount} interested
+                      by {request.createdBy} · {request.startDate || 'No date'}{' '}
+                      · {request.interestCount} interested
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       disabled={isSaving}
-                      onClick={() => void rejectRequest(request.id, request.clubName)}
+                      onClick={() =>
+                        void rejectRequest(request.id, request.clubName)
+                      }
                       className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[color:var(--input)] bg-[color:var(--background)] px-3 text-xs font-medium shadow-sm transition-colors hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <XCircle className="h-3.5 w-3.5" /> Reject
                     </button>
                     <button
                       disabled={isSaving}
-                      onClick={() => void approveRequest(request.id, request.clubName)}
+                      onClick={() =>
+                        void approveRequest(request.id, request.clubName)
+                      }
                       className="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[color:var(--primary)] px-3 text-xs font-medium text-[color:var(--primary-foreground)] shadow transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Approve
@@ -427,7 +395,9 @@ export default function TeacherDashboard() {
                       key={club.id}
                       className="border-b transition-colors hover:bg-[color:var(--muted)]/50"
                     >
-                      <td className="p-2 align-middle font-medium">{club.name}</td>
+                      <td className="p-2 align-middle font-medium">
+                        {club.name}
+                      </td>
                       <td className="p-2 align-middle">{club.memberCount}</td>
                       <td className="p-2 align-middle">
                         <div
