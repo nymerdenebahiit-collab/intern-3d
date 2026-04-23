@@ -2,7 +2,6 @@ import { badRequest, ok, serverError } from '@/lib/tom-http'
 import { listUsers, upsertUser } from '@/lib/tom-db'
 import { parseUserInput } from '@/lib/tom-validators'
 
-export const runtime = 'edge'
 
 export async function GET(request: Request) {
   try {

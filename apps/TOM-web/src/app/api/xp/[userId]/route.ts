@@ -1,7 +1,6 @@
 import { getUser, getUserXpTotal, listXpLogs } from '@/lib/tom-db'
 import { notFound, ok, serverError } from '@/lib/tom-http'
 
-export const runtime = 'edge'
 
 type Params = { params: Promise<{ userId: string }> }
 

@@ -2,7 +2,6 @@ import { deleteBadge, getBadge, upsertBadge } from '@/lib/tom-db'
 import { notFound, ok, serverError } from '@/lib/tom-http'
 import type { BadgeInput } from '@/lib/tom-types'
 
-export const runtime = 'edge'
 
 type Params = { params: Promise<{ badgeId: string }> }
 

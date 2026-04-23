@@ -1,7 +1,6 @@
 import { autoJoinAllUsers, listEvents, upsertEvent } from '@/lib/tom-db'
 import { badRequest, ok, serverError } from '@/lib/tom-http'
 
-export const runtime = 'edge'
 
 export async function GET(request: Request) {
   try {
