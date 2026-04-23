@@ -1,29 +1,82 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { gql } from '@apollo/client'
+import { useQuery } from '@apollo/client/react'
 import { RoomCard } from '@/components/rooms/room-card'
 import { RoomFilterBar } from '@/components/rooms/room-filter-bar'
 import { Button } from '@/components/ui/button'
 import { STATUS_CONFIG } from '@/lib/constants'
-import { createRooms } from '@/lib/mock-data'
 import { useRole } from '@/lib/role-context'
-import type { RoomStatus } from '@/lib/types'
+import type { Room, RoomStatus } from '@/lib/types'
+
+const GET_DASHBOARD_ROOMS = gql`
+  query GetDashboardRooms($floor: Int, $search: String) {
+    rooms(floor: $floor, search: $search) {
+      id
+      number
+      floor
+      type
+      status
+      currentEvent {
+        id
+        roomId
+        title
+        type
+        startTime
+        endTime
+        dayOfWeek
+        daysOfWeek
+        date
+        isOverride
+        instructor
+        notes
+        validFrom
+        validUntil
+      }
+      nextEvent {
+        id
+        roomId
+        title
+        type
+        startTime
+        endTime
+        dayOfWeek
+        daysOfWeek
+        date
+        isOverride
+        instructor
+        notes
+        validFrom
+        validUntil
+      }
+      devices {
+        id
+        name
+        roomId
+        roomNumber
+        status
+        assignedTo
+      }
+    }
+  }
+`
 
 export default function DashboardPage() {
   const { role, user } = useRole()
-  const rooms = useMemo(() => createRooms(), [])
 
   const [selectedFloor, setSelectedFloor] = useState<3 | 4>(3)
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const floorRooms = useMemo(() => {
-    return rooms.filter(room => {
-      if (room.floor !== selectedFloor) return false
-      if (searchQuery && !room.number.toLowerCase().includes(searchQuery.toLowerCase())) return false
-      return true
-    })
-  }, [rooms, searchQuery, selectedFloor])
+  const { data, loading, error, refetch } = useQuery<{ rooms: Room[] }>(GET_DASHBOARD_ROOMS, {
+    variables: {
+      floor: selectedFloor,
+      search: searchQuery.trim() || null,
+    },
+  })
+
+  const floorRooms = data?.rooms ?? []
 
   const filteredRooms = useMemo(() => {
     return floorRooms.filter(room => {
@@ -137,14 +190,25 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {filteredRooms.length > 0 ? (
+        {error ? (
+          <div className="rounded-md border border-dashed border-destructive/40 bg-background/60 p-8 text-center">
+            <p className="text-sm text-muted-foreground">Өгөгдөл татахад алдаа гарлаа.</p>
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+              Дахин оролдох
+            </Button>
+          </div>
+        ) : loading && !data ? (
+          <div className="rounded-md border border-dashed border-border bg-background/60 p-8 text-center">
+            <p className="text-muted-foreground">Өрөөнүүдийг ачаалж байна...</p>
+          </div>
+        ) : filteredRooms.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredRooms.map(room => (
               <RoomCard
                 key={room.id}
                 room={room}
-                showDeviceInfo={isStudent && userDevice?.roomId === room.id}
-                assignedDeviceName={userDevice?.roomId === room.id ? userDevice.name : undefined}
+                showDeviceInfo={isStudent && userDevice != null && userDevice.roomId === room.id}
+                assignedDeviceName={userDevice != null && userDevice.roomId === room.id ? userDevice.name : undefined}
               />
             ))}
           </div>
