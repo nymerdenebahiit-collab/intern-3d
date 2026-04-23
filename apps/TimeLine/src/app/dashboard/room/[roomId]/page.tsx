@@ -1,11 +1,12 @@
 'use client'
 
-import { use, useState, useMemo } from 'react'
+import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { gql } from '@apollo/client'
+import { useQuery } from '@apollo/client/react'
 import { useRole } from '@/lib/role-context'
-import { getRoomById, getEventsForRoom } from '@/lib/mock-data'
 import { DAYS_OF_WEEK, EVENT_TYPE_CONFIG, STATUS_CONFIG } from '@/lib/constants'
-import type { ScheduleEvent, EventType } from '@/lib/types'
+import type { ScheduleEvent, EventType, Room } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -47,6 +48,114 @@ import { format, parseISO } from 'date-fns'
 // Demo time simulation: Tuesday 10:30
 const DEMO_DAY = 2
 const DEMO_TIME = '10:30'
+
+const GET_ROOM_DETAIL = gql`
+  query GetRoomDetail($roomId: ID!) {
+    room(roomId: $roomId) {
+      room {
+        id
+        number
+        floor
+        type
+        status
+        currentEvent {
+          id
+          roomId
+          title
+          type
+          startTime
+          endTime
+          dayOfWeek
+          daysOfWeek
+          date
+          isOverride
+          instructor
+          notes
+          validFrom
+          validUntil
+        }
+        nextEvent {
+          id
+          roomId
+          title
+          type
+          startTime
+          endTime
+          dayOfWeek
+          daysOfWeek
+          date
+          isOverride
+          instructor
+          notes
+          validFrom
+          validUntil
+        }
+        devices {
+          id
+          name
+          roomId
+          roomNumber
+          status
+          assignedTo
+        }
+      }
+      events {
+        id
+        roomId
+        title
+        type
+        startTime
+        endTime
+        dayOfWeek
+        daysOfWeek
+        date
+        isOverride
+        instructor
+        notes
+        validFrom
+        validUntil
+      }
+    }
+  }
+`
+
+type RoomDetailQueryResult = {
+  room: {
+    room: Room
+    events: ScheduleEvent[]
+  } | null
+}
+
+type EventFormData = {
+  title: string
+  type: EventType
+  daysOfWeek: number[]
+  startTime: string
+  endTime: string
+  instructor: string
+  notes: string
+  isOverride: boolean
+  validFrom: string
+  validUntil: string
+  date: string
+}
+
+function createEventFormData(event: ScheduleEvent | null): EventFormData {
+  return {
+    title: event?.title || '',
+    type: event?.type || 'class',
+    daysOfWeek: event?.daysOfWeek || [1],
+    startTime: event?.startTime || '09:00',
+    endTime: event?.endTime || '12:00',
+    instructor: event?.instructor || '',
+    notes: event?.notes || '',
+    isOverride: event?.isOverride || false,
+    validFrom: event?.validFrom || '',
+    validUntil: event?.validUntil || '',
+    date: event?.date || '',
+  }
+}
+
 function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number)
   return hours * 60 + minutes
@@ -56,15 +165,35 @@ export default function RoomDetailPage({ params }: { params: Promise<{ roomId: s
   const { roomId } = use(params)
   const { role } = useRole()
   const isAdmin = role === 'admin'
-  
-  const room = useMemo(() => getRoomById(roomId), [roomId])
-  const roomEvents = useMemo(() => getEventsForRoom(roomId), [roomId])
+  const { data, loading, error, refetch } = useQuery<RoomDetailQueryResult>(GET_ROOM_DETAIL, {
+    variables: { roomId },
+  })
+  const room = data?.room?.room
+  const roomEvents = data?.room?.events ?? []
   
   const [selectedDay, setSelectedDay] = useState(DEMO_DAY)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [eventToDelete, setEventToDelete] = useState<ScheduleEvent | null>(null)
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[420px] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+        <h1 className="text-xl font-bold">Өрөөний мэдээлэл ачаалж чадсангүй</h1>
+        <p className="max-w-md text-sm text-muted-foreground">{error.message}</p>
+        <Button onClick={() => refetch()}>Дахин оролдох</Button>
+      </div>
+    )
+  }
 
   if (!room) {
     return (
@@ -610,38 +739,13 @@ function EventFormDialog({
   onSave: () => void
 }) {
   const isEditing = !!event
-  const [formData, setFormData] = useState({
-    title: event?.title || '',
-    type: event?.type || 'class' as EventType,
-    daysOfWeek: event?.daysOfWeek || [1],
-    startTime: event?.startTime || '09:00',
-    endTime: event?.endTime || '12:00',
-    instructor: event?.instructor || '',
-    notes: event?.notes || '',
-    isOverride: event?.isOverride || false,
-    validFrom: event?.validFrom || '',
-    validUntil: event?.validUntil || '',
-    date: event?.date || '',
-  })
+  const [formData, setFormData] = useState<EventFormData>(() => createEventFormData(event))
 
-  // Reset form when event changes
-  useState(() => {
-    if (event) {
-      setFormData({
-        title: event.title,
-        type: event.type,
-        daysOfWeek: event.daysOfWeek,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        instructor: event.instructor || '',
-        notes: event.notes || '',
-        isOverride: event.isOverride,
-        validFrom: event.validFrom || '',
-        validUntil: event.validUntil || '',
-        date: event.date || '',
-      })
+  useEffect(() => {
+    if (open) {
+      setFormData(createEventFormData(event))
     }
-  })
+  }, [event, open])
 
   const weekdays = DAYS_OF_WEEK.filter(d => d.value >= 1 && d.value <= 5)
 

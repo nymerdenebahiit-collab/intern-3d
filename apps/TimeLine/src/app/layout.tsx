@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: 'Academic TimeLine - Өрөө удирдлагын систем',
   description: 'Сургуулийн өрөө болон төхөөрөмжийн удирдлагын систем',
   generator: 'v0.app',
+  other: {
+    google: 'notranslate',
+  },
   icons: {
     icon: [
       {
@@ -39,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="mn" suppressHydrationWarning>
+    <html lang="mn" className="notranslate" suppressHydrationWarning translate="no">
       <body className={`${inter.variable} font-sans antialiased bg-background text-foreground`}>
         <ThemeProvider
           attribute="class"
