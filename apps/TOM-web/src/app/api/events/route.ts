@@ -3,9 +3,12 @@ import { badRequest, ok, serverError } from '@/lib/tom-http'
 
 export const runtime = 'edge'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const events = await listEvents()
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const q = searchParams.get('q')
+    const events = await listEvents({ status, q })
     return ok({ events })
   } catch (error) {
     return serverError('Events-г ачаалж чадсангүй.', error instanceof Error ? error.message : error)

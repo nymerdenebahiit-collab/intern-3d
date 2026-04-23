@@ -1,5 +1,5 @@
 import { deleteEvent, getEvent, upsertEvent } from '@/lib/tom-db'
-import { badRequest, notFound, ok, serverError } from '@/lib/tom-http'
+import { notFound, ok, serverError } from '@/lib/tom-http'
 import type { EventStatus } from '@/lib/tom-types'
 
 export const runtime = 'edge'
