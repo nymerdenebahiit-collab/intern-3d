@@ -10,12 +10,6 @@ const DEFAULT_REFRESH_INTERVAL_MS = 30_000
 const MIN_REFRESH_INTERVAL_MS = 5_000
 const MAX_REFRESH_INTERVAL_MS = 60_000
 
-type EventFilters = {
-  roomId?: string | null
-  dayOfWeek?: string | null
-  instructor?: string | null
-}
-
 function encodeSseChunk(event: string, data: unknown) {
   return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
 }
@@ -27,15 +21,12 @@ function encodeSseComment(comment: string) {
 function getRefreshIntervalMs(request: Request) {
   const { searchParams } = new URL(request.url)
   const requestedMs = Number(searchParams.get('intervalMs') ?? DEFAULT_REFRESH_INTERVAL_MS)
-
   if (!Number.isFinite(requestedMs)) return DEFAULT_REFRESH_INTERVAL_MS
-
   return Math.min(MAX_REFRESH_INTERVAL_MS, Math.max(MIN_REFRESH_INTERVAL_MS, requestedMs))
 }
 
-function getEventFilters(request: Request): EventFilters {
+function getEventFilters(request: Request) {
   const { searchParams } = new URL(request.url)
-
   return {
     roomId: searchParams.get('roomId'),
     dayOfWeek: searchParams.get('dayOfWeek'),
@@ -43,9 +34,8 @@ function getEventFilters(request: Request): EventFilters {
   }
 }
 
-async function loadEventSnapshot(filters: EventFilters) {
+async function loadEventSnapshot(filters: ReturnType<typeof getEventFilters>) {
   const events = await listScheduleEvents(filters)
-
   return {
     generatedAt: new Date().toISOString(),
     filters: {
@@ -85,9 +75,7 @@ export async function GET(request: Request) {
     )
   }
 
-  let closed = false
-  let heartbeatTimer: ReturnType<typeof setInterval> | undefined
-  let refreshTimer: ReturnType<typeof setInterval> | undefined
+  let closed = false, heartbeatTimer: ReturnType<typeof setInterval> | undefined, refreshTimer: ReturnType<typeof setInterval> | undefined
   let lastSerializedSnapshot = JSON.stringify(initialSnapshot.events)
 
   const stream = new ReadableStream<Uint8Array>({
@@ -137,13 +125,8 @@ export async function GET(request: Request) {
       )
       safeEnqueue(encodeSseChunk('events', initialSnapshot))
 
-      heartbeatTimer = setInterval(() => {
-        safeEnqueue(encodeSseComment('heartbeat'))
-      }, HEARTBEAT_INTERVAL_MS)
-
-      refreshTimer = setInterval(() => {
-        void publishSnapshot()
-      }, refreshIntervalMs)
+      heartbeatTimer = setInterval(() => safeEnqueue(encodeSseComment('heartbeat')), HEARTBEAT_INTERVAL_MS)
+      refreshTimer = setInterval(() => void publishSnapshot(), refreshIntervalMs)
 
       request.signal.addEventListener('abort', closeStream, { once: true })
     },
