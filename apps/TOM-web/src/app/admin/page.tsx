@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import {
   BadgeAlert,
   CalendarDays,
@@ -62,8 +62,6 @@ export default function AdminDashboard() {
     errorMessage,
     events,
     eventForm,
-    form,
-    handleCreate,
     handleCreateEvent,
     handleCreateUser,
     handleDeleteEvent,
@@ -79,24 +77,17 @@ export default function AdminDashboard() {
     resetUserForm,
     thresholdGoal,
     thresholdReachedCount,
-    resetForm,
     toggleClubStatus,
     toggleUserBan,
     toggleUserRestriction,
     updateEventField,
     updateUserField,
     updateUserRole,
-    updateField,
     formatThresholdLabel,
     summary,
     userForm,
     users,
   } = useAdminDashboard(options);
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void handleCreate();
-  };
 
   const sectionItems = [
     {
@@ -681,182 +672,7 @@ export default function AdminDashboard() {
 
           {activeSection === 'requests' ? (
             <>
-              <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
-                <section className="rounded-[28px] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-soft">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7f93b1]">
-                        Create request
-                      </p>
-                      <h3 className="mt-2 text-[1.15rem] font-semibold text-[#183153]">
-                        New club request form
-                      </h3>
-                      <p className="mt-2 max-w-2xl text-[0.9rem] leading-6 text-[#6c829f]">
-                        Fill this out when a teacher or admin wants to add a new
-                        club to the approval queue.
-                      </p>
-                    </div>
-                    <StatusBadge type="review" text="review mode" />
-                  </div>
-
-                  <form className="mt-5 space-y-5" onSubmit={onSubmit}>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <label className="block">
-                        <span className={inputLabelClass}>Club name</span>
-                        <input
-                          type="text"
-                          value={form.clubName}
-                          onChange={(event) =>
-                            updateField('clubName', event.target.value)
-                          }
-                          placeholder="Example: English Club"
-                          className={fieldClass}
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>Teacher</span>
-                        <select
-                          value={form.teacher}
-                          onChange={(event) =>
-                            updateField('teacher', event.target.value)
-                          }
-                          className={fieldClass}
-                        >
-                        {options.teachers.map((teacher) => (
-                          <option key={teacher} value={teacher}>
-                            {teacher}
-                          </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>Start date</span>
-                        <input
-                          type="date"
-                          value={form.startDate}
-                          onChange={(event) =>
-                            updateField('startDate', event.target.value)
-                          }
-                          className={fieldClass}
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>End date</span>
-                        <input
-                          type="date"
-                          value={form.endDate}
-                          onChange={(event) =>
-                            updateField('endDate', event.target.value)
-                          }
-                          className={fieldClass}
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>Allowed days</span>
-                        <select
-                          value={form.allowedDays}
-                          onChange={(event) =>
-                            updateField('allowedDays', event.target.value)
-                          }
-                          className={fieldClass}
-                        >
-                        {options.allowedDays.map((days) => (
-                          <option key={days} value={days}>
-                            {days}
-                          </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>Grade range</span>
-                        <select
-                          value={form.gradeRange}
-                          onChange={(event) =>
-                            updateField('gradeRange', event.target.value)
-                          }
-                          className={fieldClass}
-                        >
-                        {options.gradeRanges.map((grade) => (
-                          <option key={grade} value={grade}>
-                            {grade}
-                          </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>Student cap</span>
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          value={form.studentLimit}
-                          onChange={(event) =>
-                            updateField('studentLimit', event.target.value)
-                          }
-                          className={fieldClass}
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className={inputLabelClass}>
-                          Current interest
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="99"
-                          value={form.interestCount}
-                          onChange={(event) =>
-                            updateField('interestCount', event.target.value)
-                          }
-                          className={fieldClass}
-                        />
-                      </label>
-                    </div>
-
-                    <label className="block">
-                      <span className={inputLabelClass}>Admin note</span>
-                      <textarea
-                        rows={4}
-                        value={form.note}
-                        onChange={(event) =>
-                          updateField('note', event.target.value)
-                        }
-                        placeholder="Why this club matters, what to review, and any approval notes."
-                        className={fieldClass}
-                      />
-                    </label>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button
-                        type="submit"
-                        disabled={isSaving}
-                        className="rounded-full bg-[color:var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(79,114,213,0.22)] transition hover:opacity-90"
-                      >
-                        Create request
-                      </button>
-                      <button
-                        type="button"
-                        onClick={resetForm}
-                        className="rounded-full border border-[color:var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[#56708f] transition hover:bg-[color:var(--surface)]"
-                      >
-                        Reset
-                      </button>
-                      <span className="text-sm text-[#6982a2]">
-                        {form.clubName
-                          ? `Ready to queue: ${form.clubName}`
-                          : 'Start with a new club request'}
-                      </span>
-                    </div>
-                  </form>
-                </section>
-
+              <div className="mt-6 grid gap-6 xl:grid-cols-2">
                 <aside className="space-y-5">
                   <section className="rounded-[28px] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-soft">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7f93b1]">
