@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bell, CalendarDays, GraduationCap, LogOut, Users } from 'lucide-react';
+
+import { useTomSession } from '@/app/_providers/tom-session-provider';
 
 const navItems = [
   { href: '/students/clubs', label: 'Клубүүд', icon: Users },
@@ -15,13 +17,24 @@ function normalizePathname(pathname: string) {
 }
 
 export default function StudentHeader() {
+  const router = useRouter();
   const pathname = usePathname();
+  const { user, logout, isAuthenticating } = useTomSession();
   const normalizedPathname = normalizePathname(pathname);
   const activeHref =
     navItems.find(({ href }) => normalizedPathname === href)?.href ??
     navItems
       .filter(({ href }) => href !== '/students' && normalizedPathname.startsWith(`${href}/`))
       .sort((left, right) => right.href.length - left.href.length)[0]?.href;
+
+  async function handleLogout() {
+    try {
+      await logout();
+      router.push('/');
+    } catch {
+      router.push('/');
+    }
+  }
 
   return (
     <header className="rounded-[28px] border border-[#dce7f8] bg-white/95 px-5 py-4 shadow-soft">
@@ -34,7 +47,9 @@ export default function StudentHeader() {
             <p className="text-sm font-semibold text-[#1a3560]">
               Сургуулийн клубүүд
             </p>
-            <p className="text-xs text-[#7a90af]">Сурагч</p>
+            <p className="text-xs text-[#7a90af]">
+              {user ? `${user.name} · Сурагч` : 'Сурагч'}
+            </p>
           </div>
         </Link>
 
@@ -58,13 +73,15 @@ export default function StudentHeader() {
           })}
         </nav>
 
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          disabled={isAuthenticating}
           className="inline-flex items-center gap-2 rounded-full border border-[#e2eaf5] bg-white px-4 py-2 text-sm font-semibold text-[#4a6080] transition hover:bg-[#eef4ff] hover:text-[#1a3560]"
         >
           <LogOut className="h-4 w-4 shrink-0" />
-          Гарах
-        </Link>
+          {isAuthenticating ? 'Гарч байна...' : 'Гарах'}
+        </button>
       </div>
     </header>
   );
