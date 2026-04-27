@@ -1,5 +1,7 @@
 import './global.css';
 
+import { TomSessionProvider } from './_providers/tom-session-provider';
+
 export const metadata = {
   title: 'Ухаалаг ажлын орчны самбар',
   description:
@@ -13,7 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="mn">
-      <body className="min-h-screen bg-[#f4f7fb]">{children}</body>
+      <body className="min-h-screen bg-[#f4f7fb]">
+        <TomSessionProvider>{children}</TomSessionProvider>
+      </body>
     </html>
   );
 }

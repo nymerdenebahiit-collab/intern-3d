@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
@@ -11,6 +11,8 @@ import {
   GraduationCap,
   LogOut,
 } from 'lucide-react';
+
+import { useTomSession } from '@/app/_providers/tom-session-provider';
 
 const navItems = [
   { key: 'admin', href: '/admin', label: 'Админ самбар', icon: LayoutDashboard },
@@ -48,7 +50,9 @@ const navItems = [
 ];
 
 export default function AdminLayout() {
+  const router = useRouter();
   const pathname = usePathname();
+  const { user, logout, isAuthenticating } = useTomSession();
   const normalizedPathname =
     pathname !== '/' && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   const activeHref =
@@ -59,6 +63,15 @@ export default function AdminLayout() {
               href !== '/admin' && normalizedPathname.startsWith(`${href}/`)
           )
           .sort((left, right) => right.href.length - left.href.length)[0]?.href;
+
+  async function handleLogout() {
+    try {
+      await logout();
+      router.push('/');
+    } catch {
+      router.push('/');
+    }
+  }
 
   return (
     <div className="flex h-full w-56 flex-col border-r border-[#e2eaf5] bg-white shadow-[2px_0_12px_rgba(20,50,100,0.06)]">
@@ -71,7 +84,9 @@ export default function AdminLayout() {
             <p className="text-sm font-semibold text-[#1a3560]">
               Сургуулийн клубүүд
             </p>
-            <p className="text-xs text-[#7a90af]">Админы харагдац</p>
+            <p className="text-xs text-[#7a90af]">
+              {user ? `${user.name} · Админ` : 'Админы харагдац'}
+            </p>
           </div>
         </div>
       </Link>
@@ -97,13 +112,15 @@ export default function AdminLayout() {
       </nav>
 
       <div className="border-t border-[#e8eef8] p-3">
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          disabled={isAuthenticating}
           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#4a6080] transition-colors hover:bg-[#eef4ff] hover:text-[#1a3560]"
         >
           <LogOut className="h-4 w-4 shrink-0" />
-          Гарах
-        </Link>
+          {isAuthenticating ? 'Гарч байна...' : 'Гарах'}
+        </button>
       </div>
     </div>
   );
