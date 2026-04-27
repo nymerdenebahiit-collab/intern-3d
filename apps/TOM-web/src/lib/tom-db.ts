@@ -404,6 +404,23 @@ export async function listClubMembershipsForUser(userId: string): Promise<ClubMe
   return result.results.map(mapClubMembershipRow)
 }
 
+export async function listClubsByIds(ids: string[]): Promise<Club[]> {
+  if (ids.length === 0) return []
+
+  const db = getTomDb()
+  const placeholders = ids.map(() => '?').join(', ')
+  const result = await db
+    .prepare(
+      `SELECT * FROM clubs
+       WHERE id IN (${placeholders})
+       ORDER BY name ASC`
+    )
+    .bind(...ids)
+    .all<ClubRow>()
+
+  return result.results.map(mapClubRow)
+}
+
 export async function joinClub(clubId: string, userId: string): Promise<ClubMembership | null> {
   const db = getTomDb()
   const now = nowIso()
@@ -441,6 +458,7 @@ export async function listClubRequests(params: {
   requestStatus?: string | null
   clubStatus?: string | null
   teacher?: string | null
+  createdBy?: string | null
   q?: string | null
 } = {}) {
   const db = getTomDb()
@@ -460,6 +478,11 @@ export async function listClubRequests(params: {
   if (params.teacher) {
     filters.push('teacher_name LIKE ?')
     bindings.push(`%${params.teacher}%`)
+  }
+
+  if (params.createdBy) {
+    filters.push('created_by = ?')
+    bindings.push(params.createdBy)
   }
 
   if (params.q) {
@@ -833,6 +856,38 @@ export async function getEvent(id: string) {
     .first<EventRow>()
 
   return row ? mapEventRow(row) : null
+}
+
+export async function listEventsForUser(
+  userId: string,
+  params: {
+    status?: string | null
+  } = {}
+) {
+  const db = getTomDb()
+  const filters = ['ep.user_id = ?']
+  const bindings: Array<string | number> = [userId]
+
+  if (params.status) {
+    filters.push('e.status = ?')
+    bindings.push(params.status)
+  }
+
+  const where = `WHERE ${filters.join(' AND ')}`
+  const result = await db
+    .prepare(
+      `SELECT e.*, COUNT(all_ep.id) AS participant_count
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+       LEFT JOIN event_participants all_ep ON all_ep.event_id = e.id
+       ${where}
+       GROUP BY e.id
+       ORDER BY e.event_date ASC, e.start_time ASC, e.created_at DESC`
+    )
+    .bind(...bindings)
+    .all<EventRow>()
+
+  return result.results.map(mapEventRow)
 }
 
 export async function upsertEvent(input: EventInput, id?: string) {

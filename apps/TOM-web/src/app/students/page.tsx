@@ -4,7 +4,16 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Bell, CalendarDays, Users } from 'lucide-react';
 
-import type { Club, ClubRequest, SchoolEvent } from '@/lib/tom-types';
+import { useTomSession } from '@/app/_providers/tom-session-provider';
+import type { Club, ClubRequest, SchoolEvent, TomCurrentUser } from '@/lib/tom-types';
+
+type StudentDashboardResponse = {
+  user: TomCurrentUser;
+  joinedClubIds: string[];
+  clubs: Club[];
+  requests: ClubRequest[];
+  events: SchoolEvent[];
+};
 
 async function readJson<T>(response: Response) {
   const data = (await response.json().catch(() => null)) as
@@ -36,9 +45,11 @@ function sortByDateAscending(left: string, right: string) {
 }
 
 export default function StudentDashboard() {
+  const { user } = useTomSession();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [requests, setRequests] = useState<ClubRequest[]>([]);
   const [events, setEvents] = useState<SchoolEvent[]>([]);
+  const [joinedClubIds, setJoinedClubIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -50,20 +61,13 @@ export default function StudentDashboard() {
       setErrorMessage('');
 
       try {
-        const [clubData, requestData, eventData] = await Promise.all([
-          apiRequest<{ clubs: Club[] }>('/api/clubs'),
-          apiRequest<{ requests: ClubRequest[] }>(
-            '/api/club-requests?requestStatus=pending'
-          ),
-          apiRequest<{ events: SchoolEvent[] }>('/api/events').catch(() => ({
-            events: [],
-          })),
-        ]);
+        const data = await apiRequest<StudentDashboardResponse>('/api/students/dashboard');
 
         if (!cancelled) {
-          setClubs(clubData.clubs);
-          setRequests(requestData.requests);
-          setEvents(eventData.events);
+          setClubs(data.clubs);
+          setRequests(data.requests);
+          setEvents(data.events);
+          setJoinedClubIds(data.joinedClubIds);
         }
       } catch (error) {
         if (!cancelled) {
@@ -90,7 +94,6 @@ export default function StudentDashboard() {
   const myClubs = useMemo(
     () =>
       clubs
-        .filter((club) => club.status === 'active')
         .sort((left, right) => left.name.localeCompare(right.name))
         .slice(0, 5),
     [clubs]
@@ -116,10 +119,17 @@ export default function StudentDashboard() {
 
     const items: Array<{ title: string; detail: string }> = [];
 
+    if (joinedClubIds.length > 0) {
+      items.push({
+        title: 'Таны клубийн тоо',
+        detail: `Та одоогоор ${joinedClubIds.length} клубт нэгдсэн байна.`,
+      });
+    }
+
     if (requests.length > 0) {
       items.push({
-        title: 'Хүлээгдэж буй хүсэлт',
-        detail: `${requests.length} клуб нээх хүсэлт байна.`,
+        title: 'Таны клубийн хүсэлтүүд',
+        detail: `${requests.length} хүсэлт тань системд байна.`,
       });
     }
 
@@ -127,6 +137,13 @@ export default function StudentDashboard() {
       items.push({
         title: 'Удахгүй болох арга хэмжээ',
         detail: `${nextMeeting.title} · ${nextMeeting.eventDate}`,
+      });
+    }
+
+    if (user?.accountStatus === 'restricted') {
+      items.push({
+        title: 'Хандалтын анхааруулга',
+        detail: 'Таны бүртгэл түр хязгаарлагдсан төлөвтэй байна.',
       });
     }
 
@@ -138,7 +155,7 @@ export default function StudentDashboard() {
     }
 
     return items;
-  }, [isLoading, nextMeeting, requests.length]);
+  }, [isLoading, joinedClubIds.length, nextMeeting, requests.length, user?.accountStatus]);
 
   return (
     <div className="space-y-6">
@@ -154,7 +171,7 @@ export default function StudentDashboard() {
               <p className="text-sm text-[#6f86a7]">Ачаалж байна...</p>
             ) : myClubs.length === 0 ? (
               <p className="text-sm text-[#6f86a7]">
-                Одоогоор идэвхтэй клуб алга байна.
+                Одоогоор таны нэгдсэн клуб алга байна.
               </p>
             ) : (
               myClubs.map((club) => (
