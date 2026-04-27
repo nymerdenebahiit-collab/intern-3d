@@ -40,7 +40,7 @@ export type ClubForm = {
   note: string;
 };
 
-export type UserRole = (typeof userRoleOptions)[number];
+export type UserRole = 'student' | 'teacher' | 'admin';
 
 export type UserAccountStatus = (typeof userAccountStatusOptions)[number];
 
