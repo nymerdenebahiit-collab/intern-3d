@@ -41,9 +41,9 @@ import { useRole } from '@/lib/role-context'
 import { cn } from '@/lib/utils'
 import type { EventType, Room, RoomStatus, ScheduleEvent } from '@/lib/types'
 
-const PLANNING_START_HOUR = 13
+const PLANNING_START_HOUR = 9
 const PLANNING_END_HOUR = 20
-const SLOT_MINUTES = 60
+const SLOT_MINUTES = 30
 const DAY_MINUTES = (PLANNING_END_HOUR - PLANNING_START_HOUR) * 60
 
 const WORK_DAYS = [
@@ -52,11 +52,18 @@ const WORK_DAYS = [
   { value: 3, label: 'Лхагва', short: 'Wed' },
   { value: 4, label: 'Пүрэв', short: 'Thu' },
   { value: 5, label: 'Баасан', short: 'Fri' },
+  { value: 6, label: 'Бямба', short: 'Sat' },
+  { value: 7, label: 'Ням', short: 'Sun' },
 ] as const
 
 const HOUR_MARKS = Array.from({ length: PLANNING_END_HOUR - PLANNING_START_HOUR + 1 }, (_, index) => PLANNING_START_HOUR + index)
+const VISIBLE_HOUR_MARKS = HOUR_MARKS.slice(0, -1).filter(hour => (hour - PLANNING_START_HOUR) % 2 === 0 || hour === PLANNING_END_HOUR - 1)
+const HOUR_COUNT = PLANNING_END_HOUR - PLANNING_START_HOUR
 const SLOT_COUNT = DAY_MINUTES / SLOT_MINUTES
 const SLOT_INDEXES = Array.from({ length: SLOT_COUNT }, (_, index) => index)
+const HOUR_GRID_TEMPLATE = `repeat(${HOUR_COUNT}, minmax(0, 1fr))`
+const SLOT_GRID_TEMPLATE = `repeat(${SLOT_COUNT}, minmax(0, 1fr))`
+const SCHEDULER_GRID_TEMPLATE = '128px repeat(7, 520px)'
 
 const GET_SCHEDULER_DATA = gql`
   query GetSchedulerData($floor: Int, $search: String) {
@@ -204,6 +211,13 @@ function slotToTime(slot: number): string {
   return minutesToTime(PLANNING_START_HOUR * 60 + slot * SLOT_MINUTES)
 }
 
+function normalizeTimelineTime(time: string): string {
+  const min = PLANNING_START_HOUR * 60
+  const max = PLANNING_END_HOUR * 60
+  const clamped = Math.min(max, Math.max(min, timeToMinutes(time)))
+  return minutesToTime(Math.round(clamped / SLOT_MINUTES) * SLOT_MINUTES)
+}
+
 function clampEventToPlanningDay(event: ScheduleEvent) {
   const start = Math.max(timeToMinutes(event.startTime), PLANNING_START_HOUR * 60)
   const end = Math.min(timeToMinutes(event.endTime), PLANNING_END_HOUR * 60)
@@ -314,13 +328,15 @@ function createFormFromEvent(event: ScheduleEvent, dayOfWeek: number, weekStart:
 
 function createMutationInput(roomId: string, dayOfWeek: number, form: DraftForm): ScheduleEventMutationInput {
   const isOneTime = form.recurrence === 'one-time'
+  const startTime = normalizeTimelineTime(form.startTime)
+  const endTime = normalizeTimelineTime(form.endTime)
 
   return {
     roomId,
     title: form.title.trim(),
     type: form.type,
-    startTime: form.startTime,
-    endTime: form.endTime,
+    startTime,
+    endTime,
     daysOfWeek: form.recurrence === 'daily' ? WORK_DAYS.map(day => day.value) : [dayOfWeek],
     date: isOneTime ? form.date : null,
     isOverride: isOneTime,
@@ -331,14 +347,16 @@ function createMutationInput(roomId: string, dayOfWeek: number, form: DraftForm)
 
 function buildLocalEvent(roomId: string, dayOfWeek: number, form: DraftForm): ScheduleEvent {
   const isOneTime = form.recurrence === 'one-time'
+  const startTime = normalizeTimelineTime(form.startTime)
+  const endTime = normalizeTimelineTime(form.endTime)
 
   return {
     id: `local-${crypto.randomUUID()}`,
     roomId,
     title: form.title.trim(),
     type: form.type,
-    startTime: form.startTime,
-    endTime: form.endTime,
+    startTime,
+    endTime,
     dayOfWeek,
     daysOfWeek: form.recurrence === 'daily' ? WORK_DAYS.map(day => day.value) : [dayOfWeek],
     date: isOneTime ? form.date : undefined,
@@ -427,6 +445,10 @@ function AdminScheduler() {
 
   const handleSave = async () => {
     if (!selection || !form || !form.title.trim()) return
+    if (timeToMinutes(normalizeTimelineTime(form.endTime)) <= timeToMinutes(normalizeTimelineTime(form.startTime))) {
+      setMutationError('Дуусах цаг эхлэх цагаас хойш байх ёстой.')
+      return
+    }
 
     const input = createMutationInput(selection.roomId, selection.dayOfWeek, form)
 
@@ -533,7 +555,7 @@ function AdminScheduler() {
 
         <div className="overflow-auto">
           <div className="min-w-[1320px]">
-            <div className="sticky top-0 z-[2] grid grid-cols-[128px_repeat(5,minmax(232px,1fr))] border-b border-[#e1dfdd] bg-white dark:border-border dark:bg-card">
+            <div className="sticky top-0 z-[2] grid border-b border-[#e1dfdd] bg-white dark:border-border dark:bg-card" style={{ gridTemplateColumns: SCHEDULER_GRID_TEMPLATE }}>
               <div className="border-r border-[#e1dfdd] px-3 py-2 text-xs font-semibold uppercase text-muted-foreground dark:border-border">
                 Анги
               </div>
@@ -546,9 +568,15 @@ function AdminScheduler() {
                     </div>
                     <Badge variant="outline" className="rounded-md text-[10px]">{day.short}</Badge>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-7 text-[10px] text-muted-foreground">
-                    {HOUR_MARKS.slice(0, -1).map(hour => (
-                      <span key={hour}>{hour}:00</span>
+                  <div className="relative mt-1.5 h-4 text-[10px] text-muted-foreground">
+                    {VISIBLE_HOUR_MARKS.map(hour => (
+                      <span
+                        key={hour}
+                        className="absolute top-0 -translate-x-1/2 whitespace-nowrap"
+                        style={{ left: `${((hour - PLANNING_START_HOUR) / HOUR_COUNT) * 100}%` }}
+                      >
+                        {hour}:00
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -565,7 +593,7 @@ function AdminScheduler() {
               <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">Анги олдсонгүй</div>
             ) : (
               rooms.map(room => (
-                <div key={room.id} className="grid min-h-[64px] grid-cols-[128px_repeat(5,minmax(232px,1fr))] border-b border-[#edebe9] dark:border-border">
+                <div key={room.id} className="grid min-h-[64px] border-b border-[#edebe9] dark:border-border" style={{ gridTemplateColumns: SCHEDULER_GRID_TEMPLATE }}>
                   <Link
                     href={`/dashboard/room/${room.id}`}
                     className="flex flex-col justify-center border-r border-[#e1dfdd] bg-[#faf9f8] px-3 py-2 transition-colors hover:bg-[#f3f2f1] dark:border-border dark:bg-muted/30"
@@ -585,12 +613,12 @@ function AdminScheduler() {
 
                     return (
                       <div key={day.value} className="relative border-r border-[#edebe9] last:border-r-0 dark:border-border">
-                        <div className="absolute inset-0 grid grid-cols-7">
+                        <div className="absolute inset-0 grid" style={{ gridTemplateColumns: HOUR_GRID_TEMPLATE }}>
                           {HOUR_MARKS.slice(0, -1).map(hour => (
                             <div key={hour} className="border-r border-[#f3f2f1] last:border-r-0 dark:border-border/60" />
                           ))}
                         </div>
-                        <div className="absolute inset-0 grid grid-cols-7">
+                        <div className="absolute inset-0 grid" style={{ gridTemplateColumns: SLOT_GRID_TEMPLATE }}>
                           {SLOT_INDEXES.map(slot => (
                             <button
                               key={slot}
@@ -715,8 +743,9 @@ function AdminScheduler() {
                   <Input
                     id="schedule-start"
                     type="time"
-                    min="13:00"
+                    min="09:00"
                     max="20:00"
+                    step={SLOT_MINUTES * 60}
                     value={form.startTime}
                     onChange={event => setForm(current => current ? { ...current, startTime: event.target.value } : current)}
                   />
@@ -726,8 +755,9 @@ function AdminScheduler() {
                   <Input
                     id="schedule-end"
                     type="time"
-                    min="13:00"
+                    min="09:00"
                     max="20:00"
+                    step={SLOT_MINUTES * 60}
                     value={form.endTime}
                     onChange={event => setForm(current => current ? { ...current, endTime: event.target.value } : current)}
                   />
