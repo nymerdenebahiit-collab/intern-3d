@@ -177,7 +177,8 @@ type Selection = {
   slotMinutes: number
 }
 
-type SchedulerViewMode = 'day' | 'week'
+type SchedulerViewMode = 'week' | 'day' | 'month' | 'year'
+type MonthViewFilter = 'all' | 'class' | 'club' | 'closed'
 
 type DraftForm = {
   title: string
@@ -325,6 +326,11 @@ function isDateBefore(left: Date, right: Date) {
   return left.getTime() < right.getTime()
 }
 
+function getDayOfWeekValue(date: Date): number {
+  const day = date.getDay()
+  return day === 0 ? 7 : day
+}
+
 function eventOccursInWeekOnDay(event: ScheduleEvent, dayOfWeek: number, dayDate: string): boolean {
   if (event.isOverride) return event.date === dayDate
   if (!event.daysOfWeek.includes(dayOfWeek)) return false
@@ -365,6 +371,44 @@ function getEventLabel(type: EventType) {
 
 function shouldRenderTimelineEvent(event: ScheduleEvent) {
   return event.type !== 'openlab'
+}
+
+function getMonthViewOccurrencesForDate(
+  events: ScheduleEvent[],
+  roomIds: Set<string>,
+  roomLookup: Map<string, Room>,
+  date: Date,
+) {
+  const dateIso = toIsoDate(date)
+  const dayOfWeek = getDayOfWeekValue(date)
+
+  return events
+    .filter(event => roomIds.has(event.roomId) && eventOccursInWeekOnDay(event, dayOfWeek, dateIso))
+    .map(event => ({ event, room: roomLookup.get(event.roomId) ?? null }))
+    .sort((left, right) => {
+      const timeDelta = timeToMinutes(left.event.startTime) - timeToMinutes(right.event.startTime)
+      if (timeDelta !== 0) return timeDelta
+      return left.event.roomId.localeCompare(right.event.roomId)
+    })
+}
+
+function hasMonthViewConflict(occurrences: Array<{ event: ScheduleEvent }>) {
+  for (let index = 0; index < occurrences.length; index += 1) {
+    const current = occurrences[index]?.event
+    if (!current) continue
+
+    for (let nextIndex = index + 1; nextIndex < occurrences.length; nextIndex += 1) {
+      const next = occurrences[nextIndex]?.event
+      if (!next || current.roomId !== next.roomId) continue
+
+      const overlaps = timeToMinutes(current.startTime) < timeToMinutes(next.endTime)
+        && timeToMinutes(next.startTime) < timeToMinutes(current.endTime)
+
+      if (overlaps) return true
+    }
+  }
+
+  return false
 }
 
 function createDefaultForm(selection: Selection, weekStart: Date): DraftForm {
@@ -466,6 +510,7 @@ function AdminScheduler() {
   const [localEvents, setLocalEvents] = useState<ScheduleEvent[]>([])
   const [mutationError, setMutationError] = useState<string | null>(null)
   const [selectedRoomTab, setSelectedRoomTab] = useState<string>('all')
+  const [monthFilter, setMonthFilter] = useState<MonthViewFilter>('all')
 
   const { data, loading, error, refetch } = useQuery<SchedulerQueryResult>(GET_SCHEDULER_DATA)
   const [createScheduleEvent, { loading: saving }] = useMutation(CREATE_SCHEDULE_EVENT)
@@ -473,6 +518,7 @@ function AdminScheduler() {
   const [deleteScheduleEvent, { loading: deleting }] = useMutation(DELETE_SCHEDULE_EVENT)
 
   const rooms = useMemo(() => [...(data?.rooms ?? [])].sort((left, right) => left.number.localeCompare(right.number, 'mn', { numeric: true })), [data?.rooms])
+  const roomLookup = useMemo(() => new Map(rooms.map(room => [room.id, room] as const)), [rooms])
   const events = useMemo(() => [...(data?.events ?? []), ...localEvents].filter(shouldRenderTimelineEvent), [data?.events, localEvents])
   const weekDates = useMemo(() => WORK_DAYS.map(day => toIsoDate(addDays(weekStart, day.value - 1))), [weekStart])
   const monthDays = useMemo(() => getMonthDays(calendarMonth), [calendarMonth])
@@ -493,10 +539,39 @@ function AdminScheduler() {
     () => selectedRoomTab === 'all' ? null : rooms.find(room => room.id === selectedRoomTab) ?? null,
     [rooms, selectedRoomTab]
   )
-  const roomsForDayView = useMemo(
+  const roomsForFocusedView = useMemo(
     () => selectedRoomView ? [selectedRoomView] : rooms,
     [rooms, selectedRoomView]
   )
+  const scopedRoomIds = useMemo(() => new Set(roomsForFocusedView.map(room => room.id)), [roomsForFocusedView])
+  const monthSummaries = useMemo(() => monthDays.map(date => {
+    const occurrences = getMonthViewOccurrencesForDate(events, scopedRoomIds, roomLookup, date)
+    const counts = occurrences.reduce<Record<'class' | 'club' | 'closed', number>>((accumulator, occurrence) => {
+      if (occurrence.event.type === 'class' || occurrence.event.type === 'club' || occurrence.event.type === 'closed') {
+        accumulator[occurrence.event.type] += 1
+      }
+      return accumulator
+    }, { class: 0, club: 0, closed: 0 })
+
+    return {
+      date,
+      dateIso: toIsoDate(date),
+      isCurrentMonth: isSameMonth(date, calendarMonth),
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+      occurrences,
+      counts,
+      totalCount: occurrences.length,
+      hasConflict: hasMonthViewConflict(occurrences),
+    }
+  }), [calendarMonth, events, monthDays, roomLookup, scopedRoomIds])
+  const monthFilterTotals = useMemo(() => monthSummaries.reduce<Record<MonthViewFilter, number>>((accumulator, summary) => {
+    if (!summary.isCurrentMonth) return accumulator
+    accumulator.all += summary.totalCount
+    accumulator.class += summary.counts.class
+    accumulator.club += summary.counts.club
+    accumulator.closed += summary.counts.closed
+    return accumulator
+  }, { all: 0, class: 0, club: 0, closed: 0 }), [monthSummaries])
   const selectedRoom = selection ? rooms.find(room => room.id === selection.roomId) : null
   const selectedDay = selection ? WORK_DAYS.find(day => day.value === selection.dayOfWeek) : null
   const selectedDayLabel = selection ? formatWeekdayName(addDays(weekStart, selection.dayOfWeek - 1)) : null
@@ -528,15 +603,33 @@ function AdminScheduler() {
     setFocusedDate(normalizedDate)
   }
 
-  const handleShiftWeek = (days: number) => {
+  const handleShiftView = (step: number) => {
     if (viewMode === 'day') {
-      const nextDate = addDays(focusedDate, days > 0 ? 1 : -1)
+      const nextDate = addDays(focusedDate, step > 0 ? 1 : -1)
       updateWeekStart(nextDate)
       return
     }
 
+    if (viewMode === 'month') {
+      const nextMonth = addMonths(calendarMonth, step > 0 ? 1 : -1)
+      const nextFocusedDate = new Date(nextMonth)
+      nextFocusedDate.setDate(1)
+      updateWeekStart(nextFocusedDate)
+      setCalendarMonth(nextMonth)
+      return
+    }
+
+    if (viewMode === 'year') {
+      const nextYearMonth = addMonths(calendarMonth, step > 0 ? 12 : -12)
+      const nextFocusedDate = new Date(nextYearMonth)
+      nextFocusedDate.setDate(1)
+      updateWeekStart(nextFocusedDate)
+      setCalendarMonth(nextYearMonth)
+      return
+    }
+
     setWeekStart(current => {
-      const next = addDays(current, days)
+      const next = addDays(current, step)
       setCalendarMonth(getMonthStart(next))
       setFocusedDate(next)
       return next
@@ -699,14 +792,38 @@ function AdminScheduler() {
               >
                 Day
               </button>
+              <button
+                type="button"
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                  viewMode === 'month'
+                    ? 'bg-white text-foreground shadow-sm dark:bg-[#2b3150] dark:text-white'
+                    : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                )}
+                onClick={() => setViewMode('month')}
+              >
+                Month
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                  viewMode === 'year'
+                    ? 'bg-white text-foreground shadow-sm dark:bg-[#2b3150] dark:text-white'
+                    : 'text-muted-foreground hover:text-foreground dark:hover:text-white'
+                )}
+                onClick={() => setViewMode('year')}
+              >
+                Year
+              </button>
             </div>
             <Button
               type="button"
               variant="outline"
               size="icon"
               className="h-8 w-8 rounded-xl"
-              onClick={() => handleShiftWeek(-7)}
-              aria-label="Өмнөх долоо хоног"
+              onClick={() => handleShiftView(-7)}
+              aria-label={viewMode === 'day' ? 'Өмнөх өдөр' : viewMode === 'month' ? 'Өмнөх сар' : viewMode === 'year' ? 'Өмнөх жил' : 'Өмнөх долоо хоног'}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -723,7 +840,11 @@ function AdminScheduler() {
                 <p className="text-xs text-muted-foreground">
                   {viewMode === 'day'
                     ? 'Day view'
-                    : `${formatShortDate(weekStart)} - ${formatShortDate(addDays(weekStart, 4))}`}
+                    : viewMode === 'month'
+                      ? 'Month view'
+                      : viewMode === 'year'
+                        ? 'Year view'
+                        : `${formatShortDate(weekStart)} - ${formatShortDate(addDays(weekStart, 4))}`}
                 </p>
               </div>
             </button>
@@ -732,8 +853,8 @@ function AdminScheduler() {
               variant="outline"
               size="icon"
               className="h-8 w-8 rounded-xl"
-              onClick={() => handleShiftWeek(7)}
-              aria-label="Дараагийн долоо хоног"
+              onClick={() => handleShiftView(7)}
+              aria-label={viewMode === 'day' ? 'Дараагийн өдөр' : viewMode === 'month' ? 'Дараагийн сар' : viewMode === 'year' ? 'Дараагийн жил' : 'Дараагийн долоо хоног'}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -770,7 +891,11 @@ function AdminScheduler() {
                   <p className="text-xs text-muted-foreground">
                     {viewMode === 'day'
                       ? 'Өдөр сонгоод баруун талын timeline-г шинэчилнэ'
-                      : `Сонгосон 7 хоног: ${formatShortDate(weekStart)} - ${formatShortDate(addDays(weekStart, 6))}`}
+                      : viewMode === 'month'
+                        ? 'Сар доторх өдөр дээр дарахад Day view рүү орно'
+                        : viewMode === 'year'
+                          ? 'Жилийн roadmap дараагийн PR дээр орно'
+                          : `Сонгосон 7 хоног: ${formatShortDate(weekStart)} - ${formatShortDate(addDays(weekStart, 6))}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
@@ -815,7 +940,7 @@ function AdminScheduler() {
                       type="button"
                       className={cn(
                         'flex h-8 items-center justify-center rounded-lg border text-[13px] font-medium transition',
-                        viewMode === 'day' && isSameDate(day, focusedDate) && 'border-[#6264a7] bg-[#dfe3ff] text-[#282f5f] dark:border-[#99a0ff] dark:bg-[#36406e] dark:text-white',
+                        (viewMode === 'day' || viewMode === 'month') && isSameDate(day, focusedDate) && 'border-[#6264a7] bg-[#dfe3ff] text-[#282f5f] dark:border-[#99a0ff] dark:bg-[#36406e] dark:text-white',
                         viewMode === 'week' && inSelectedWeek
                           ? 'border-[#7b7fd6] bg-[#eceeff] text-[#323769] shadow-sm dark:border-[#8e92ff]/70 dark:bg-[#2a3152] dark:text-white'
                           : 'border-transparent text-foreground/80 hover:border-[#d7d8f4] hover:bg-white dark:hover:border-[#353b59] dark:hover:bg-[#1f2434]',
@@ -834,6 +959,10 @@ function AdminScheduler() {
               <div className="mt-3 rounded-xl border border-dashed border-[#d7d8f4] bg-white/70 px-3 py-2 text-[11px] text-muted-foreground dark:border-[#323858] dark:bg-[#111522]">
                 {viewMode === 'day'
                   ? 'Өдөр дээр дармагц баруун талын day timeline шинэчлэгдэнэ.'
+                  : viewMode === 'month'
+                    ? 'Өдөр дээр дармагц month summary-гаас day timeline руу drill-down хийнэ.'
+                    : viewMode === 'year'
+                      ? 'Year roadmap-ийг дараагийн PR дээр холбоно.'
                   : 'Өдөр дээр дармагц тухайн долоо хоногийн хуваарь баруун талд шинэчлэгдэнэ.'}
               </div>
             </aside>
@@ -982,7 +1111,7 @@ function AdminScheduler() {
                       />
                     </div>
                   )
-                ) : (
+                ) : viewMode === 'day' ? (
                   <div className="min-w-[980px]">
                     <div className="sticky top-0 z-[2] grid grid-cols-[104px_minmax(860px,1fr)] border-b border-[#e1dfdd] bg-white dark:border-border dark:bg-card">
                       <div className="border-r border-[#e1dfdd] px-2.5 py-2 text-[11px] font-semibold uppercase text-muted-foreground dark:border-border">
@@ -1012,10 +1141,10 @@ function AdminScheduler() {
                       <div className="m-4 rounded-md border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
                         {error.message}
                       </div>
-                    ) : roomsForDayView.length === 0 ? (
+                    ) : roomsForFocusedView.length === 0 ? (
                       <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">Анги олдсонгүй</div>
                     ) : (
-                      roomsForDayView.map(room => {
+                      roomsForFocusedView.map(room => {
                         const dayEvents = events
                           .filter(event => event.roomId === room.id && eventOccursInWeekOnDay(event, focusedDayOfWeek, focusedDateIso))
                           .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime))
@@ -1095,6 +1224,29 @@ function AdminScheduler() {
                         )
                       })
                     )}
+                  </div>
+                ) : viewMode === 'month' ? (
+                  <MonthSummaryView
+                    calendarMonth={calendarMonth}
+                    focusedDate={focusedDate}
+                    monthSummaries={monthSummaries}
+                    monthFilter={monthFilter}
+                    monthFilterTotals={monthFilterTotals}
+                    selectedRoomView={selectedRoomView}
+                    onFilterChange={setMonthFilter}
+                    onSelectDate={(date) => {
+                      updateWeekStart(date)
+                      setViewMode('day')
+                    }}
+                  />
+                ) : (
+                  <div className="flex min-h-[420px] items-center justify-center p-8">
+                    <div className="max-w-xl rounded-2xl border border-dashed border-[#d7d8f4] bg-[#fbfbfe] px-6 py-8 text-center dark:border-[#323858] dark:bg-[#111522]">
+                      <p className="text-lg font-semibold text-foreground">Year roadmap next</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Semester separator, exam week, holiday, recurring heatmap болон utilization summary-г дараагийн PR дээр нэмнэ.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1268,6 +1420,169 @@ function Legend({ color, label }: { color: string; label: string }) {
       <span className={cn('h-2.5 w-2.5 rounded-sm', color)} />
       {label}
     </span>
+  )
+}
+
+function MonthSummaryView({
+  calendarMonth,
+  focusedDate,
+  monthSummaries,
+  monthFilter,
+  monthFilterTotals,
+  selectedRoomView,
+  onFilterChange,
+  onSelectDate,
+}: {
+  calendarMonth: Date
+  focusedDate: Date
+  monthSummaries: Array<{
+    date: Date
+    dateIso: string
+    isCurrentMonth: boolean
+    isWeekend: boolean
+    occurrences: Array<{ event: ScheduleEvent; room: Room | null }>
+    counts: Record<'class' | 'club' | 'closed', number>
+    totalCount: number
+    hasConflict: boolean
+  }>
+  monthFilter: MonthViewFilter
+  monthFilterTotals: Record<MonthViewFilter, number>
+  selectedRoomView: Room | null
+  onFilterChange: (_filter: MonthViewFilter) => void
+  onSelectDate: (_date: Date) => void
+}) {
+  const filterOptions: Array<{ key: MonthViewFilter; label: string }> = [
+    { key: 'all', label: 'All' },
+    { key: 'class', label: 'Classes' },
+    { key: 'club', label: 'Clubs' },
+    { key: 'closed', label: 'Closed' },
+  ]
+
+  return (
+    <div className="min-w-0">
+      <div className="border-b border-[#e1dfdd] px-4 py-3 dark:border-border">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">{formatMonthLabel(calendarMonth)} summary</p>
+            <p className="text-xs text-muted-foreground">
+              {selectedRoomView ? `${selectedRoomView.number} ангийн харагдац` : 'Бүх ангийн сарын тойм'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {filterOptions.map(option => (
+              <button
+                key={option.key}
+                type="button"
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition',
+                  monthFilter === option.key
+                    ? 'border-[#6264a7] bg-[#eef0ff] text-[#323769] dark:border-[#8f93ff] dark:bg-[#252b45] dark:text-white'
+                    : 'border-[#d9dbea] bg-white text-muted-foreground hover:border-[#bec2e5] hover:text-foreground dark:border-[#30364d] dark:bg-[#171b27] dark:hover:text-white'
+                )}
+                onClick={() => onFilterChange(option.key)}
+              >
+                <span>{option.label}</span>
+                <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] dark:bg-white/10">
+                  {monthFilterTotals[option.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 border-b border-[#e1dfdd] bg-[#faf9f8] text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:border-border dark:bg-muted/20">
+        {CALENDAR_DAY_LETTERS.map((letter, index) => (
+          <div key={`${letter}-${index}`} className="border-r border-[#ececf4] px-3 py-2 last:border-r-0 dark:border-border/60">
+            {letter}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {monthSummaries.map(summary => {
+          const visibleOccurrences = monthFilter === 'all'
+            ? summary.occurrences
+            : summary.occurrences.filter(occurrence => occurrence.event.type === monthFilter)
+          const previewOccurrences = visibleOccurrences.slice(0, 2)
+          const extraCount = Math.max(0, visibleOccurrences.length - previewOccurrences.length)
+          const isToday = isSameDate(summary.date, new Date())
+          const isFocused = isSameDate(summary.date, focusedDate)
+
+          return (
+            <button
+              key={summary.dateIso}
+              type="button"
+              className={cn(
+                'min-h-[152px] border-b border-r border-[#ececf4] p-3 text-left align-top transition hover:bg-[#f8f9ff] dark:border-border/60 dark:hover:bg-[#1d2131]',
+                summary.isWeekend && 'bg-[#fafbff] dark:bg-[#161a27]',
+                !summary.isCurrentMonth && 'bg-[#fcfcfe] text-muted-foreground/55 dark:bg-[#111522] dark:text-muted-foreground/55',
+                summary.counts.closed > 0 && summary.isCurrentMonth && 'bg-[#fff9ec] dark:bg-[#2b2414]',
+                isFocused && 'ring-2 ring-inset ring-[#6264a7]',
+                isToday && 'outline outline-1 outline-[#a8ace6] outline-offset-[-2px]'
+              )}
+              onClick={() => onSelectDate(summary.date)}
+            >
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold text-foreground dark:text-white">{summary.date.getDate()}</div>
+                  {summary.totalCount > 0 && (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {summary.totalCount} schedule
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {summary.hasConflict && <span className="h-2.5 w-2.5 rounded-full bg-[#d83b01]" title="Conflict detected" />}
+                  {summary.totalCount > 0 && (
+                    <span className="rounded-full bg-[#eef0ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#323769] dark:bg-[#252b45] dark:text-white">
+                      {visibleOccurrences.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mb-2 flex flex-wrap gap-1">
+                {summary.counts.class > 0 && (
+                  <span className="rounded-full bg-[#eaf2ff] px-1.5 py-0.5 text-[10px] font-medium text-[#17375e]">
+                    {summary.counts.class} class
+                  </span>
+                )}
+                {summary.counts.club > 0 && (
+                  <span className="rounded-full bg-[#f1ecff] px-1.5 py-0.5 text-[10px] font-medium text-[#3f2a76]">
+                    {summary.counts.club} club
+                  </span>
+                )}
+                {summary.counts.closed > 0 && (
+                  <span className="rounded-full bg-[#fff4ce] px-1.5 py-0.5 text-[10px] font-medium text-[#5d2d00]">
+                    {summary.counts.closed} closed
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                {previewOccurrences.map(({ event, room }) => (
+                  <div
+                    key={`${summary.dateIso}-${event.id}-${room?.id ?? 'room'}`}
+                    className={cn('rounded-lg border px-2 py-1.5 text-[11px] shadow-sm', getEventTone(event.type))}
+                  >
+                    <div className="truncate font-semibold">{event.title}</div>
+                    <div className="truncate opacity-80">
+                      {event.startTime} · {selectedRoomView ? getEventLabel(event.type) : `${room?.number ?? ''} · ${getEventLabel(event.type)}`}
+                    </div>
+                  </div>
+                ))}
+                {extraCount > 0 && (
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    +{extraCount} more
+                  </div>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
