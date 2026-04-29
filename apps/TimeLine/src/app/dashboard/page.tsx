@@ -6,5 +6,6 @@ import { useRole } from '@/lib/role-context'
 
 export default function DashboardPage() {
   const { role } = useRole()
+
   return role === 'admin' ? <AdminScheduler /> : <StudentDashboard />
 }

@@ -15,6 +15,8 @@ export type Selection = {
 
 export type SchedulerViewMode = 'week' | 'day' | 'month' | 'year'
 export type MonthViewFilter = 'all' | 'class' | 'club' | 'closed'
+export type TimelineOccurrence = { event: ScheduleEvent; room: Room | null }
+export type TimelineCounts = Record<'class' | 'club' | 'closed', number>
 
 export type DraftForm = {
   title: string
@@ -46,8 +48,30 @@ export type MonthSummary = {
   dateIso: string
   isCurrentMonth: boolean
   isWeekend: boolean
-  occurrences: Array<{ event: ScheduleEvent; room: Room | null }>
-  counts: Record<'class' | 'club' | 'closed', number>
+  occurrences: TimelineOccurrence[]
+  counts: TimelineCounts
   totalCount: number
   hasConflict: boolean
+}
+
+export type YearMonthSummary = {
+  monthStart: Date
+  shortLabel: string
+  totalCount: number
+  counts: TimelineCounts
+  activeDays: number
+  utilization: number
+  hasConflict: boolean
+  conflictCount: number
+  previewEvents: TimelineOccurrence[]
+  timeBuckets: {
+    morning: number
+    afternoon: number
+    evening: number
+  }
+  roomLoads: Array<{
+    roomId: string
+    roomNumber: string
+    totalCount: number
+  }>
 }

@@ -25,6 +25,12 @@ export function addMonths(date: Date, months: number): Date {
   return copy
 }
 
+export function addYears(date: Date, years: number): Date {
+  const copy = new Date(date)
+  copy.setFullYear(copy.getFullYear() + years)
+  return copy
+}
+
 export function getMonthStart(date: Date): Date {
   const copy = new Date(date)
   copy.setDate(1)
@@ -60,7 +66,7 @@ export function formatShortDate(date: Date): string {
 }
 
 export function formatMonthLabel(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date)
+  return new Intl.DateTimeFormat('mn-MN', { month: 'long', year: 'numeric' }).format(date)
 }
 
 export function formatWeekdayName(date: Date): string {
@@ -77,4 +83,27 @@ export function isDateBefore(left: Date, right: Date) {
 
 export function getDayOfWeekValue(date: Date): number {
   return date.getDay() === 0 ? 7 : date.getDay()
+}
+
+export function getYearStart(date: Date): Date {
+  const copy = new Date(date)
+  copy.setMonth(0, 1)
+  copy.setHours(0, 0, 0, 0)
+  return copy
+}
+
+export function getYearMonths(date: Date): Date[] {
+  const yearStart = getYearStart(date)
+  return Array.from({ length: 12 }, (_, index) => addMonths(yearStart, index))
+}
+
+export function getMonthDaysInMonth(date: Date): Date[] {
+  const monthStart = getMonthStart(date)
+  const nextMonth = addMonths(monthStart, 1)
+  const totalDays = Math.round((nextMonth.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24))
+  return Array.from({ length: totalDays }, (_, index) => addDays(monthStart, index))
+}
+
+export function formatMonthShortLabel(date: Date): string {
+  return new Intl.DateTimeFormat('mn-MN', { month: 'short' }).format(date)
 }
