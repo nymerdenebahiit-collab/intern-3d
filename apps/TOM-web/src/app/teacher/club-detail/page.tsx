@@ -13,7 +13,6 @@ const clubStatusLabel: Record<ClubStatus, string> = {
   active: 'Идэвхтэй',
   paused: 'Түр зогссон',
   archived: 'Архивласан',
-  spam: 'Спам',
 };
 
 type EditableClub = {
@@ -512,7 +511,7 @@ export default function DetailPage() {
                   }
                   className="rounded-2xl border border-[#d8e4f4] bg-white px-4 py-3 text-sm outline-none focus:border-[#88a9df]"
                 >
-                  {['draft', 'pending', 'active', 'paused', 'archived', 'spam'].map(
+                  {['draft', 'pending', 'active', 'paused', 'archived'].map(
                     (status) => (
                       <option key={status} value={status}>
                         {clubStatusLabel[status as ClubStatus]}

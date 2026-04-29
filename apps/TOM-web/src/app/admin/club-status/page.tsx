@@ -1,5 +1,5 @@
-import { AdminDashboardContent } from '../page';
+import { redirect } from 'next/navigation';
 
 export default function AdminClubStatusPage() {
-  return <AdminDashboardContent activeSection="clubs" />;
+  redirect('/admin/clubs');
 }

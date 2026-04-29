@@ -37,7 +37,7 @@ export type BadgeInput = Partial<Omit<Badge, 'id' | 'createdAt' | 'updatedAt'>> 
   name: string
 }
 
-export type ClubStatus = 'draft' | 'pending' | 'active' | 'paused' | 'archived' | 'spam'
+export type ClubStatus = 'draft' | 'pending' | 'active' | 'paused' | 'archived'
 export type RequestStatus = 'pending' | 'approved' | 'rejected'
 export type UserRole = 'student' | 'teacher' | 'admin'
 export type UserAccountStatus = 'active' | 'restricted' | 'banned'

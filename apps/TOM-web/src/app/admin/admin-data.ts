@@ -19,7 +19,7 @@ export type ClubBase = {
 
 export type ClubRequest = ClubBase & {
   requestStatus: 'pending' | 'approved' | 'rejected';
-  clubStatus: 'pending' | 'active' | 'paused' | 'spam';
+  clubStatus: 'pending' | 'active' | 'paused';
   flaggedReason?: string;
 };
 
@@ -128,42 +128,6 @@ export const initialRequests: ClubRequest[] = [
     requestStatus: 'pending',
     clubStatus: 'pending',
     note: 'Нээлт хийхээс өмнө цөөн хэдэн бүртгэл нэмэгдэхийг хүлээж байна.',
-  },
-];
-
-export const initialSpamQueue: ClubRequest[] = [
-  {
-    id: 'spam-club-1',
-    clubName: 'Үнэгүй iPad бэлэг клуб',
-    teacher: 'Тодорхойгүй хэрэглэгч',
-    createdBy: 'Гадаад холбоос',
-    interestCount: 1,
-    studentLimit: 99,
-    gradeRange: 'Бүх анги',
-    allowedDays: 'Хэзээ ч',
-    startDate: '2025-09-01',
-    endDate: '2025-12-20',
-    requestStatus: 'pending',
-    clubStatus: 'spam',
-    flaggedReason:
-      'Сэжигтэй нэр, сурталчилгааны өнгө аяс, багшийн эзэмшигчгүй байна.',
-    note: 'Хуурамч мэт харагдаж байгаа тул нэн даруй устгах шаардлагатай.',
-  },
-  {
-    id: 'spam-club-2',
-    clubName: 'Даалгавар туслагч бот',
-    teacher: 'Жинхэнэ ажилтан биш',
-    createdBy: 'Нэргүй хүсэлт',
-    interestCount: 2,
-    studentLimit: 80,
-    gradeRange: 'Бүх анги',
-    allowedDays: 'Даваа-Баасан',
-    startDate: '2025-09-01',
-    endDate: '2025-12-20',
-    requestStatus: 'pending',
-    clubStatus: 'spam',
-    flaggedReason: 'Давтагдсан түлхүүр үгтэй автомат илгээсэн хүсэлт байж магадгүй.',
-    note: 'Сурагчдад хүрэхээс өмнө шалгаж цэвэрлэх шаардлагатай.',
   },
 ];
 

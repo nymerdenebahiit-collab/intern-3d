@@ -194,7 +194,6 @@ export default function ClubsPage() {
       pending: 'Хүлээгдэж буй',
       draft: 'Ноорог',
       archived: 'Архивласан',
-      spam: 'Спам',
     })[status] ?? status;
 
   return (

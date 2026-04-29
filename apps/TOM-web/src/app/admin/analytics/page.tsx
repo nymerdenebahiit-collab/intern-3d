@@ -3,7 +3,6 @@
 import {
   Activity,
   CalendarDays,
-  ShieldAlert,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -20,7 +19,6 @@ export default function AnalyticsPage() {
     events,
     isLoading,
     requests,
-    spamQueue,
     summary,
     thresholdReachedCount,
     users,
@@ -70,13 +68,6 @@ export default function AnalyticsPage() {
       icon: Activity,
       tint: 'bg-gradient-student',
     },
-    {
-      label: 'Тэмдэглэгдсэн спам',
-      value: spamQueue.length,
-      detail: 'шалгах шаардлагатай',
-      icon: ShieldAlert,
-      tint: 'bg-gradient-admin',
-    },
   ];
 
   const bars = [
@@ -111,7 +102,7 @@ export default function AnalyticsPage() {
         ) : null}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => {
           const Icon = card.icon;
 
