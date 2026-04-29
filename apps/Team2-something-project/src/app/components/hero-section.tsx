@@ -9,18 +9,19 @@ export function HeroSection() {
         <Reveal className="hero-copy-block" variant="left">
           <p className="landing-kicker">Team 2 school club system</p>
           <h1>
-            <span>Make club</span>
-            <span>registration simple</span>
-            <span>for every role</span>
+            <span>Help students</span>
+            <span>find the right club</span>
+            <span>without the chaos</span>
           </h1>
 
           <div className="hero-copy-stack">
             <p className="hero-copy-text">
-              Students can browse clubs and apply with confidence.
+              Students can compare clubs, see open seats, and apply with
+              confidence from one clear page.
             </p>
             <p className="hero-copy-text hero-copy-text-muted">
-              Teachers review requests, while admins manage setup, capacity,
-              and the full program in one place.
+              Teachers review requests while admins stay on top of schedules,
+              capacity, and the full school club program.
             </p>
           </div>
 
