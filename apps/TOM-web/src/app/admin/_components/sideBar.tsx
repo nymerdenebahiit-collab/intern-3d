@@ -6,8 +6,6 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
-  ShieldAlert,
-  LayoutGrid,
   GraduationCap,
   LogOut,
 } from 'lucide-react';
@@ -21,18 +19,6 @@ const navItems = [
     href: '/admin/requests',
     label: 'Хүсэлтүүд',
     icon: CalendarDays,
-  },
-  {
-    key: 'club-status',
-    href: '/admin/club-status',
-    label: 'Клубын төлөв',
-    icon: LayoutGrid,
-  },
-  {
-    key: 'spam',
-    href: '/admin/spam',
-    label: 'Спам',
-    icon: ShieldAlert,
   },
   {
     key: 'events',

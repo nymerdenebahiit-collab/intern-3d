@@ -2,7 +2,6 @@ import {
   initialActiveClubs,
   initialManagedUsers,
   initialRequests,
-  initialSpamQueue,
 } from '@/app/admin/admin-data'
 import { getTomDb } from '@/lib/d1'
 import type {
@@ -279,6 +278,8 @@ export async function listClubs(params: {
   const filters: string[] = []
   const bindings: Array<string | number> = []
 
+  filters.push("status <> 'spam'")
+
   if (params.status) {
     filters.push('status = ?')
     bindings.push(params.status)
@@ -468,6 +469,8 @@ export async function listClubRequests(params: {
   const filters: string[] = []
   const bindings: Array<string | number> = []
 
+  filters.push("club_status <> 'spam'")
+
   if (params.requestStatus) {
     filters.push('status = ?')
     bindings.push(params.requestStatus)
@@ -637,30 +640,6 @@ export async function rejectClubRequest(id: string) {
   )
 }
 
-export async function markClubRequestAsSpam(id: string, flaggedReason?: string | null) {
-  const request = await getClubRequest(id)
-  if (!request) return null
-
-  return upsertClubRequest(
-    {
-      clubName: request.clubName,
-      teacherName: request.teacherName,
-      createdBy: request.createdBy,
-      interestCount: request.interestCount,
-      studentLimit: request.studentLimit,
-      gradeRange: request.gradeRange,
-      allowedDays: request.allowedDays,
-      startDate: request.startDate,
-      endDate: request.endDate,
-      note: request.note,
-      requestStatus: request.requestStatus,
-      clubStatus: 'spam',
-      flaggedReason: flaggedReason ?? request.flaggedReason ?? 'Marked as spam by admin.',
-    },
-    id
-  )
-}
-
 export async function listUsers(params: {
   role?: string | null
   accountStatus?: string | null
@@ -743,12 +722,11 @@ export async function upsertUser(input: UserInput, id?: string) {
 
 export async function getDashboardSummary() {
   const db = getTomDb()
-  const [usersCount, activeClubsCount, pendingRequestsCount, spamRequestsCount, thresholdReachedCount] =
+  const [usersCount, activeClubsCount, pendingRequestsCount, thresholdReachedCount] =
     await Promise.all([
       db.prepare('SELECT COUNT(*) AS count FROM users').first<{ count: number }>(),
       db.prepare("SELECT COUNT(*) AS count FROM clubs WHERE status = 'active'").first<{ count: number }>(),
       db.prepare("SELECT COUNT(*) AS count FROM club_requests WHERE status = 'pending'").first<{ count: number }>(),
-      db.prepare("SELECT COUNT(*) AS count FROM club_requests WHERE club_status = 'spam'").first<{ count: number }>(),
       db.prepare('SELECT COUNT(*) AS count FROM club_requests WHERE interest_count >= 7').first<{ count: number }>(),
     ])
 
@@ -756,7 +734,6 @@ export async function getDashboardSummary() {
     totalUsers: usersCount?.count ?? 0,
     activeClubs: activeClubsCount?.count ?? 0,
     pendingRequests: pendingRequestsCount?.count ?? 0,
-    spamRequests: spamRequestsCount?.count ?? 0,
     thresholdReachedRequests: thresholdReachedCount?.count ?? 0,
   }
 }
@@ -1265,7 +1242,7 @@ export async function seedTomDatabase({ reset = false }: { reset?: boolean } = {
     await db.prepare('DELETE FROM users').run()
   }
 
-  for (const request of [...initialRequests, ...initialSpamQueue]) {
+  for (const request of initialRequests) {
     await upsertClubRequest({
       clubName: request.clubName,
       teacherName: request.teacher,
@@ -1320,7 +1297,7 @@ export async function seedTomDatabase({ reset = false }: { reset?: boolean } = {
   return {
     ok: true,
     clubs: initialActiveClubs.length,
-    requests: initialRequests.length + initialSpamQueue.length,
+    requests: initialRequests.length,
     users: initialManagedUsers.length,
   }
 }

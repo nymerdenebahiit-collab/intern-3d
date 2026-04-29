@@ -26,7 +26,6 @@ type DashboardSummary = {
   totalUsers: number;
   activeClubs: number;
   pendingRequests: number;
-  spamRequests: number;
   thresholdReachedRequests: number;
 };
 
@@ -45,7 +44,6 @@ const emptySummary: DashboardSummary = {
   totalUsers: 0,
   activeClubs: 0,
   pendingRequests: 0,
-  spamRequests: 0,
   thresholdReachedRequests: 0,
 };
 
@@ -101,9 +99,7 @@ function mapRequest(request: ApiClubRequest): ClubRequest {
     note: request.note,
     requestStatus: request.requestStatus,
     clubStatus:
-      request.clubStatus === 'spam'
-        ? 'spam'
-        : request.clubStatus === 'active'
+      request.clubStatus === 'active'
         ? 'active'
         : request.clubStatus === 'paused'
         ? 'paused'
@@ -494,23 +490,6 @@ export function useAdminDashboard(options: TomFormOptions) {
     }, 'Хэрэглэгчийн түдгэлзүүлэлтийг шинэчилж чадсангүй.');
   };
 
-  const removeSpamClub = async (clubId: string) => {
-    const spamClub = requests.find(
-      (item) => item.id === clubId && item.clubStatus === 'spam'
-    );
-    if (!spamClub) return;
-
-    await runMutation(async () => {
-      await apiRequest<{ ok: boolean }>(`/api/club-requests/${clubId}`, {
-        method: 'DELETE',
-      });
-
-      await refreshDashboard(
-        `${spamClub.clubName} хүсэлтийг спам гэж тэмдэглээд устгалаа.`
-      );
-    }, 'Spam хүсэлтийг устгаж чадсангүй.');
-  };
-
   const updateEventField = (field: keyof EventForm, value: string) => {
     setEventForm((current) => ({ ...current, [field]: value }));
   };
@@ -586,9 +565,7 @@ export function useAdminDashboard(options: TomFormOptions) {
     }, 'Арга хэмжээ цуцалж чадсангүй.');
   };
 
-  const spamQueue = requests.filter((request) => request.clubStatus === 'spam');
-  const reviewRequests = requests.filter((request) => request.clubStatus !== 'spam');
-  const pendingRequests = reviewRequests.filter(
+  const pendingRequests = requests.filter(
     (request) => request.requestStatus === 'pending'
   );
   const activeCount = summary.activeClubs;
@@ -613,12 +590,10 @@ export function useAdminDashboard(options: TomFormOptions) {
     isSaving,
     pendingRequests,
     rejectRequest,
-    removeSpamClub,
-    requests: reviewRequests,
+    requests,
     resetEventForm,
     resetUserForm,
     summary,
-    spamQueue,
     thresholdReachedCount,
     thresholdGoal,
     resetForm,

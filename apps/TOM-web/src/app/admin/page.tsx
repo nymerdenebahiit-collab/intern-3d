@@ -5,7 +5,6 @@ import {
   CalendarDays,
   ChartColumnIncreasing,
   Sparkles,
-  ShieldAlert,
   ShieldCheck,
   Trophy,
   Users,
@@ -18,7 +17,7 @@ import {
 } from './admin-data';
 import { useAdminDashboard } from './useAdminDashboard';
 
-export type AdminSection = 'requests' | 'users' | 'clubs' | 'spam' | 'events';
+export type AdminSection = 'requests' | 'users' | 'clubs' | 'events';
 
 const monthLabels = [
   '1 сар',
@@ -70,9 +69,7 @@ export function AdminDashboardContent({
     isSaving,
     pendingRequests,
     rejectRequest,
-    removeSpamClub,
     requests,
-    spamQueue,
     resetEventForm,
     resetUserForm,
     thresholdGoal,
@@ -114,14 +111,6 @@ export function AdminDashboardContent({
       tint: 'bg-gradient-student',
       badge: 'bg-[#eef4ff] text-[#4f77d6]',
     },
-    {
-      label: 'Тэмдэглэгдсэн клуб',
-      value: summary.spamRequests,
-      delta: `+${Math.max(1, summary.spamRequests) * 9}%`,
-      icon: ShieldAlert,
-      tint: 'bg-gradient-admin',
-      badge: 'bg-[#e8fbfd] text-[#1c9bb3]',
-    },
   ];
 
   const leaderboard = [...users]
@@ -148,13 +137,13 @@ export function AdminDashboardContent({
     activeClubs.length * 10 + 28,
     summary.totalUsers * 2 + 34,
     thresholdReachedCount * 11 + 18,
-    summary.spamRequests * 12 + 16,
+    pendingRequests.length * 6 + 24,
     requests.length * 5 + 24,
     activeCount * 12 + 26,
     summary.pendingRequests * 6 + 42,
     thresholdReachedCount * 8 + 35,
     summary.totalUsers * 3 + 39,
-    summary.spamRequests * 9 + 20,
+    events.length * 7 + 20,
     activeClubs.length * 7 + 48,
   ].map((value) => Math.min(92, Math.max(18, value)));
 
@@ -259,7 +248,7 @@ export function AdminDashboardContent({
           </div>
             </section>
 
-            <section className="dashboard-entrance dashboard-entrance-delay-2 mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section className="dashboard-entrance dashboard-entrance-delay-2 mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {summaryCards.map((card) => {
             const Icon = card.icon;
 
@@ -1024,88 +1013,6 @@ export function AdminDashboardContent({
                           }
                           text={formatThresholdLabel(club.interestCount)}
                         />
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          ) : null}
-
-          {activeSection === 'spam' ? (
-            <section className="mt-6 space-y-5">
-              <div className="rounded-[28px] border border-[#ffd2d5] bg-[#fff7f8] p-5 shadow-soft">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-5 w-5 text-[#de4a58]" />
-                      <h2 className="text-2xl font-bold text-[#183153]">
-                        Спам шалгалт
-                      </h2>
-                    </div>
-                    <p className="mt-2 text-sm text-[#8a5c64]">
-                      Сэжигтэй эсвэл спам гэж тэмдэглэгдсэн клубийн хүсэлтүүдийг
-                      эндээс цэвэрлэнэ.
-                    </p>
-                  </div>
-
-                  <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#de4a58]">
-                    {spamQueue.length} тэмдэглэгдсэн
-                  </span>
-                </div>
-              </div>
-
-              {spamQueue.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-[#ffd2d5] bg-white p-10 text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fff1f2]">
-                    <ShieldAlert className="h-6 w-6 text-[#de4a58]" />
-                  </div>
-                  <p className="mt-4 font-semibold text-[#183153]">
-                    Спам хүсэлт байхгүй байна
-                  </p>
-                  <p className="mt-1 text-sm text-[#8a5c64]">
-                    Тэмдэглэгдсэн клуб гарвал энд жагсаагдаж, устгах боломжтой.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {spamQueue.map((club) => (
-                    <article
-                      key={club.id}
-                      className="rounded-[28px] border border-[#ffd2d5] bg-[#fff7f8] p-5 shadow-soft"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-lg font-semibold text-[#183153]">
-                            {club.clubName}
-                          </h3>
-                          <p className="mt-1 text-sm text-[#6f86a7]">
-                            {club.teacher}
-                          </p>
-                        </div>
-                        <StatusBadge type="spam" text="Тэмдэглэгдсэн" />
-                      </div>
-
-                      <p className="mt-3 text-sm leading-6 text-[#60789a]">
-                        {club.note}
-                      </p>
-                      <p className="mt-3 rounded-[22px] bg-white/90 p-3 text-sm leading-6 text-[#cc4d57] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                        {club.flaggedReason ||
-                          'Админы шалгалтаар тэмдэглэгдсэн.'}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => void removeSpamClub(club.id)}
-                          disabled={isSaving}
-                          className="rounded-full bg-[#ff5c6b] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#e44757] disabled:opacity-50"
-                        >
-                          Спам клуб устгах
-                        </button>
-                        <span className="text-xs text-[#8a5c64]">
-                          {club.createdBy}
-                        </span>
                       </div>
                     </article>
                   ))}

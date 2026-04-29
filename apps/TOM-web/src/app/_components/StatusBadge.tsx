@@ -7,7 +7,6 @@ type StatusBadgeType =
   | 'student'
   | 'teacher'
   | 'rejected'
-  | 'spam'
   | 'review'
   | 'paused'
   | 'restricted'
@@ -22,7 +21,6 @@ const badgeStyles: Record<StatusBadgeType, string> = {
   student: 'bg-sky-50 text-sky-700 ring-1 ring-sky-100',
   teacher: 'bg-violet-50 text-violet-700 ring-1 ring-violet-100',
   rejected: 'bg-rose-50 text-rose-700 ring-1 ring-rose-100',
-  spam: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
   review: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100',
   paused: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
   restricted: 'bg-orange-50 text-orange-700 ring-1 ring-orange-100',

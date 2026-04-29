@@ -183,7 +183,6 @@ export default function TeacherDashboard() {
       pending: 'Хүлээгдэж буй',
       draft: 'Ноорог',
       archived: 'Архивласан',
-      spam: 'Спам',
     })[status] ?? status;
 
   const stats = useMemo(
