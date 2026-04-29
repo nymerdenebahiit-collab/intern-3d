@@ -1,4 +1,5 @@
 export { CtaSection } from './cta-section';
+export { CsvPlaygroundSection } from './csv-playground-section';
 export { FeaturesSection } from './features-section';
 export { HeroSection } from './hero-section';
 export { HowItWorksSection } from './how-it-works-section';

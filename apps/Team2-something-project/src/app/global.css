@@ -266,6 +266,87 @@ select {
   margin-top: 48px;
 }
 
+.csv-playground-section {
+  padding: 104px 32px;
+}
+
+.csv-playground-shell {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 38px;
+  border: 1px solid rgba(22, 48, 78, 0.08);
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 24px 80px rgba(24, 49, 83, 0.08);
+}
+
+.csv-playground-copy {
+  max-width: 42rem;
+}
+
+.csv-playground-copy h2 {
+  margin: 16px 0 0;
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.csv-playground-copy p:last-child {
+  margin: 18px 0 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.csv-playground-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.csv-panel {
+  display: block;
+  padding: 18px;
+  border: 1px solid rgba(36, 76, 132, 0.12);
+  border-radius: 24px;
+  background: rgba(247, 251, 255, 0.86);
+}
+
+.csv-panel span {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.csv-panel textarea,
+.csv-output-panel pre,
+.csv-output-panel p {
+  width: 100%;
+  min-height: 320px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+.csv-panel textarea {
+  resize: vertical;
+  outline: none;
+}
+
+.csv-output-panel pre {
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .hero-main-action {
   color: #0d0d0d;
 }
