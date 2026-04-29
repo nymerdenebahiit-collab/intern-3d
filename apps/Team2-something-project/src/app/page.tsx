@@ -1,5 +1,6 @@
 import {
   CtaSection,
+  CsvPlaygroundSection,
   FeaturesSection,
   HeroSection,
   HowItWorksSection,
@@ -15,6 +16,7 @@ export default function Page() {
       <HeroSection />
       <HowItWorksSection />
       <FeaturesSection />
+      <CsvPlaygroundSection />
       <UseCasesSection />
       <CtaSection />
       <LandingFooter />
