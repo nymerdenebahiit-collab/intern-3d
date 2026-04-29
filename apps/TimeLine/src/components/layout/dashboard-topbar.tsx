@@ -118,12 +118,13 @@ export function DashboardTopbar() {
                 Таны iMac: {user.assignedDevice.name}
               </Badge>
             )}
-            <Badge variant="outline" className="text-xs font-mono">
+           
+            <span className="text-sm text-muted-foreground">
+              {formattedDate}
+            </span>
+             <Badge variant="outline" className="text-xs font-mono">
               {formattedTime}
             </Badge>
-            {/* <span className="text-sm text-muted-foreground">
-              {formattedDate}
-            </span> */}
           </div>
         </div>
 
