@@ -18,6 +18,16 @@ const TEAM_RULES = {
   },
 };
 
+const TEAM_LABEL_ALIASES = {
+  timeline: 'timeline',
+  TimeLine: 'timeline',
+  timeline_team: 'timeline',
+  tom: 'TOM',
+  TOM: 'TOM',
+  team2: 'team2',
+  Team2: 'team2',
+};
+
 const SHARED_PREFIXES = ['.github/', 'scripts/'];
 
 const SHARED_FILES = new Set([
@@ -49,12 +59,34 @@ function getPullRequestEvent() {
   return event.pull_request ? event : null;
 }
 
+function normalizeTeamLabel(label) {
+  const direct = TEAM_LABEL_ALIASES[label];
+  if (direct) {
+    return direct;
+  }
+
+  const normalized = label.toLowerCase();
+  if (normalized === 'timeline') {
+    return 'timeline';
+  }
+  if (normalized === 'tom') {
+    return 'TOM';
+  }
+  if (normalized === 'team2') {
+    return 'team2';
+  }
+
+  return null;
+}
+
 function getTeamLabel(event) {
   const labels = event.pull_request.labels
-    .map((label) => label.name)
-    .filter((label) => Object.hasOwn(TEAM_RULES, label));
+    .map((label) => normalizeTeamLabel(label.name))
+    .filter((label) => label !== null);
 
-  if (labels.length === 0) {
+  const unique = [...new Set(labels)];
+
+  if (unique.length === 0) {
     fail(
       `Expected exactly one team label on the pull request. Found: none.\nAdd one of: ${Object.keys(
         TEAM_RULES
@@ -62,15 +94,15 @@ function getTeamLabel(event) {
     );
   }
 
-  if (labels.length !== 1) {
+  if (unique.length !== 1) {
     fail(
       `Expected exactly one team label on the pull request. Found: ${
-        labels.length ? labels.join(', ') : 'none'
+        unique.length ? unique.join(', ') : 'none'
       }.\nAdd one of: ${Object.keys(TEAM_RULES).join(', ')}`
     );
   }
 
-  return labels[0];
+  return unique[0];
 }
 
 function getMergeBase(baseSha, headSha) {

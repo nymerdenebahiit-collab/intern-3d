@@ -8,6 +8,16 @@ const TEAM_PROJECTS = {
   team2: ['something-project', 'something-project-e2e'],
 };
 
+const TEAM_LABEL_ALIASES = {
+  timeline: 'timeline',
+  TimeLine: 'timeline',
+  timeline_team: 'timeline',
+  tom: 'TOM',
+  TOM: 'TOM',
+  team2: 'team2',
+  Team2: 'team2',
+};
+
 function readPullRequestEvent() {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   if (!eventPath || !existsSync(eventPath)) {
@@ -18,12 +28,34 @@ function readPullRequestEvent() {
   return event.pull_request ? event : null;
 }
 
+function normalizeTeamLabel(label) {
+  const direct = TEAM_LABEL_ALIASES[label];
+  if (direct) {
+    return direct;
+  }
+
+  const normalized = label.toLowerCase();
+  if (normalized === 'timeline') {
+    return 'timeline';
+  }
+  if (normalized === 'tom') {
+    return 'TOM';
+  }
+  if (normalized === 'team2') {
+    return 'team2';
+  }
+
+  return null;
+}
+
 function getTeamLabel(event) {
   const labels = event.pull_request.labels
-    .map((label) => label.name)
-    .filter((label) => Object.hasOwn(TEAM_PROJECTS, label));
+    .map((label) => normalizeTeamLabel(label.name))
+    .filter((label) => label !== null);
 
-  if (labels.length === 0) {
+  const unique = [...new Set(labels)];
+
+  if (unique.length === 0) {
     throw new Error(
       `Expected exactly one team label. Found: none.\nAdd one of: ${Object.keys(TEAM_PROJECTS).join(
         ', '
@@ -31,15 +63,15 @@ function getTeamLabel(event) {
     );
   }
 
-  if (labels.length !== 1) {
+  if (unique.length !== 1) {
     throw new Error(
       `Expected exactly one team label. Found: ${
-        labels.length ? labels.join(', ') : 'none'
+        unique.length ? unique.join(', ') : 'none'
       }.`
     );
   }
 
-  return labels[0];
+  return unique[0];
 }
 
 function setOutput(name, value) {
