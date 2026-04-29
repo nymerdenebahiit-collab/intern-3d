@@ -4,8 +4,21 @@ import { normalizeTimelineTime, slotToTime, timeToMinutes } from '@/app/dashboar
 import type { DraftForm, ScheduleEventMutationInput, Selection, SchedulerViewMode } from '@/app/dashboard/_lib/scheduler-types'
 import type { ScheduleEvent } from '@/lib/types'
 
+type MutationInputOptions = {
+  forceWeekly?: boolean
+  preserveSelectionTime?: boolean
+}
+
+export function getSelectionTimeRange(selection: Selection) {
+  return {
+    startTime: slotToTime(Math.min(selection.startSlot, selection.endSlot), selection.slotMinutes),
+    endTime: slotToTime(Math.max(selection.startSlot, selection.endSlot) + 1, selection.slotMinutes),
+  }
+}
+
 export function createDefaultForm(selection: Selection, weekStart: Date): DraftForm {
-  return { title: '', type: 'class', recurrence: 'weekly', startTime: slotToTime(Math.min(selection.startSlot, selection.endSlot), selection.slotMinutes), endTime: slotToTime(Math.max(selection.startSlot, selection.endSlot) + 1, selection.slotMinutes), validFrom: toIsoDate(addDays(weekStart, selection.dayOfWeek - 1)), validUntil: '', date: toIsoDate(addDays(weekStart, selection.dayOfWeek - 1)), notes: '' }
+  const { startTime, endTime } = getSelectionTimeRange(selection)
+  return { title: '', type: 'class', recurrence: 'weekly', startTime, endTime, validFrom: toIsoDate(addDays(weekStart, selection.dayOfWeek - 1)), validUntil: '', date: toIsoDate(addDays(weekStart, selection.dayOfWeek - 1)), notes: '' }
 }
 
 export function createFormFromEvent(event: ScheduleEvent, dayOfWeek: number, weekStart: Date): DraftForm {
@@ -13,18 +26,20 @@ export function createFormFromEvent(event: ScheduleEvent, dayOfWeek: number, wee
   return { title: event.title, type: event.type, recurrence: event.isOverride ? 'one-time' : event.daysOfWeek.length >= WORK_DAYS.length ? 'daily' : 'weekly', startTime: event.startTime, endTime: event.endTime, validFrom: event.validFrom ?? selectedDate, validUntil: event.validUntil ?? '', date: selectedDate, notes: event.notes ?? '' }
 }
 
-export function createSchedulerMutationInput(roomId: string, dayOfWeek: number, form: DraftForm): ScheduleEventMutationInput {
-  const isOneTime = form.recurrence === 'one-time'
-  const startTime = normalizeTimelineTime(form.startTime)
-  const endTime = normalizeTimelineTime(form.endTime)
-  return { roomId, title: form.title.trim(), type: form.type, startTime, endTime, daysOfWeek: form.recurrence === 'daily' ? WORK_DAYS.map((day) => day.value) : [dayOfWeek], date: isOneTime ? form.date : null, isOverride: isOneTime, validFrom: isOneTime ? null : form.validFrom || null, validUntil: isOneTime ? null : form.validUntil || null }
+export function createSchedulerMutationInput(selection: Selection, form: DraftForm, options: MutationInputOptions = {}): ScheduleEventMutationInput {
+  const isOneTime = !options.forceWeekly && form.recurrence === 'one-time'
+  const selectionTimeRange = getSelectionTimeRange(selection)
+  const startTime = normalizeTimelineTime(options.preserveSelectionTime ? selectionTimeRange.startTime : form.startTime)
+  const endTime = normalizeTimelineTime(options.preserveSelectionTime ? selectionTimeRange.endTime : form.endTime)
+  return { roomId: selection.roomId, title: form.title.trim(), type: form.type, startTime, endTime, daysOfWeek: options.forceWeekly ? [selection.dayOfWeek] : form.recurrence === 'daily' ? WORK_DAYS.map((day) => day.value) : [selection.dayOfWeek], date: isOneTime ? form.date : null, isOverride: isOneTime, validFrom: isOneTime ? null : form.validFrom || null, validUntil: isOneTime ? null : form.validUntil || null }
 }
 
-export function buildLocalEvent(roomId: string, dayOfWeek: number, form: DraftForm): ScheduleEvent {
-  const isOneTime = form.recurrence === 'one-time'
-  const startTime = normalizeTimelineTime(form.startTime)
-  const endTime = normalizeTimelineTime(form.endTime)
-  return { id: `local-${crypto.randomUUID()}`, roomId, title: form.title.trim(), type: form.type, startTime, endTime, dayOfWeek, daysOfWeek: form.recurrence === 'daily' ? WORK_DAYS.map((day) => day.value) : [dayOfWeek], date: isOneTime ? form.date : undefined, isOverride: isOneTime, validFrom: isOneTime ? undefined : form.validFrom || undefined, validUntil: isOneTime ? undefined : form.validUntil || undefined, notes: form.notes.trim() || undefined }
+export function buildLocalEvent(selection: Selection, form: DraftForm, options: MutationInputOptions = {}): ScheduleEvent {
+  const isOneTime = !options.forceWeekly && form.recurrence === 'one-time'
+  const selectionTimeRange = getSelectionTimeRange(selection)
+  const startTime = normalizeTimelineTime(options.preserveSelectionTime ? selectionTimeRange.startTime : form.startTime)
+  const endTime = normalizeTimelineTime(options.preserveSelectionTime ? selectionTimeRange.endTime : form.endTime)
+  return { id: `local-${crypto.randomUUID()}`, roomId: selection.roomId, title: form.title.trim(), type: form.type, startTime, endTime, dayOfWeek: selection.dayOfWeek, daysOfWeek: options.forceWeekly ? [selection.dayOfWeek] : form.recurrence === 'daily' ? WORK_DAYS.map((day) => day.value) : [selection.dayOfWeek], date: isOneTime ? form.date : undefined, isOverride: isOneTime, validFrom: isOneTime ? undefined : form.validFrom || undefined, validUntil: isOneTime ? undefined : form.validUntil || undefined, notes: form.notes.trim() || undefined }
 }
 
 export function getSelectionForEvent(event: ScheduleEvent, roomId: string, dayOfWeek: number, viewMode: SchedulerViewMode): Selection {
